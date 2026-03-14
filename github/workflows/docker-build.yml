@@ -1,0 +1,26 @@
+name: Build Docker Images
+
+on:
+  push:
+    branches:
+      - develop
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - api-gateway
+          - auth-service
+          - driver-service
+          - order-service
+          - tracking-service
+          - payment-service
+          - notification-service
+          - ai-service
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Docker
+        runs:
+          docker build -t delivery/${{matrix.service}}./${{matrix.service}}
