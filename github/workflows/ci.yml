@@ -1,19 +1,53 @@
 name: CI
 
 on:
-  pull-request:
+  pull_request:
     branches:
       - develop
 
 jobs:
-  test:
+  lint-test:
     runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        service:
+          - api-gateway
+          - auth-service
+          - driver-service
+          - order-service
+          - tracking-service
+          - payment-service
+          - notification-service
+          - ai-service
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 23
           cache: npm
-      - run: npm ci
-      - run: npm run lint
-      - run: npm test
+          cache-dependency-path: ${{ matrix.service }}/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          cd ${{ matrix.service }}
+          npm ci
+
+      - name: Check Prettier
+        run: |
+          cd ${{ matrix.service }}
+          npx prettier . --check
+
+      - name: Run ESLint
+        run: |
+          cd ${{ matrix.service }}
+          npm run lint --if-present
+
+      - name: Run Tests
+        run: |
+          cd ${{ matrix.service }}
+          npm test --if-present

@@ -6,9 +6,30 @@ on:
       - main
 
 jobs:
-  deploy:
+  build-and-push:
     runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        service:
+          - api-gateway
+          - auth-service
+          - driver-service
+          - order-service
+          - tracking-service
+          - payment-service
+          - notification-service
+          - ai-service
+
     steps:
-      - uses: actions/checkout@v4
-      - run: docker build -t service .
-      - run: docker push service
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Login DockerHub
+        run: echo "${{ secrets.DOCKER_PASS }}" | docker login -u "${{ secrets.DOCKER_USER }}" --password-stdin
+
+      - name: Build Docker image
+        run: docker build -t ${{ secrets.DOCKER_USER }}/delivery-${{ matrix.service }}:latest ./${{ matrix.service }}
+
+      - name: Push Docker image
+        run: docker push ${{ secrets.DOCKER_USER }}/delivery-${{ matrix.service }}:latest
