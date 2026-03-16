@@ -74,7 +74,7 @@ jobs:
             fi
           done
           json=$(printf '%s\n' "${services[@]}" | jq -R . | jq -s .)
-          echo "services=$json" >> $GITHUB_OUTPUT
+          echo "services=$json" >> "$GITHUB_OUTPUT"
 
   build:
     needs: detect-changes
