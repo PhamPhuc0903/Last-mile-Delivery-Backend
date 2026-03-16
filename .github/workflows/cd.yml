@@ -1,6 +1,10 @@
 name: CD
 
 on:
+  pull_request:
+    branches:
+      - main
+
   push:
     branches:
       - main
@@ -32,4 +36,19 @@ jobs:
         run: docker build -t ${{ secrets.DOCKER_USER }}/delivery-${{ matrix.service }}:latest ./${{ matrix.service }}
 
       - name: Push Docker image
+        if: github.event_name == 'push'
         run: docker push ${{ secrets.DOCKER_USER }}/delivery-${{ matrix.service }}:latest
+
+  all-checks:
+    name: CD All Checks Passed
+    needs: [CD]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Check results
+        run: |
+          if [ "${{ needs.CD.result }}" != "success" ]; then
+            echo " CD failed"
+            exit 1
+          fi
+          echo " CD passed"
