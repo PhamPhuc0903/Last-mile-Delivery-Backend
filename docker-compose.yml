@@ -1,6 +1,21 @@
 version: "3"
 
 services:
+
+  api-gateway:
+    build: ./api-gateway
+    container_name: api-gateway
+    ports:
+      - "3000:3000"
+    depends_on:
+      - auth-service
+      - order-service
+      - driver-service
+      - tracking-service
+      - payment-service
+      - notification-service
+      - ai-service
+
   auth-service:
     build: ./auth-service
     container_name: auth-service
