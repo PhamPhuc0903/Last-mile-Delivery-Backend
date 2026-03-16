@@ -73,7 +73,7 @@ jobs:
               services+=("$dir")
             fi
           done
-          json=$(printf '%s\n' "${services[@]}" | jq -R . | jq -s .)
+          json=$(printf '%s\n' "${services[@]}" | jq -R . | jq -cs .)
           echo "services=$json" >> "$GITHUB_OUTPUT"
 
   build:
