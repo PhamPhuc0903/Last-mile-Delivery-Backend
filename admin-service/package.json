@@ -1,5 +1,5 @@
 {
-  "name": "payment-service",
+  "name": "admin-service",
   "version": "1.0.0",
   "type": "module",
   "main": "src/server.js",
@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "pg": "^8.20.0"
   },

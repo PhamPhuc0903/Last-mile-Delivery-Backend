@@ -12,12 +12,17 @@ services:
       - order-service
       - driver-service
       - tracking-service
-      - payment-service
+      - dispatch-service
       - notification-service
       - ai-service
+      - user-service
+      - admin-service
+      - chatbot-service
 
   auth-service:
     build: ./auth-service
+    env_file:
+      - ./auth-service/.env
     container_name: auth-service
     ports:
       - "3001:3000"
@@ -54,9 +59,9 @@ services:
     depends_on:
       - redis
 
-  payment-service:
-    build: ./payment-service
-    container_name: payment-service
+  dispatch-service:
+    build: ./dispatch-service
+    container_name: dispatch-service
     ports:
       - "3005:3000"
     depends_on:
@@ -75,6 +80,40 @@ services:
     container_name: ai-service
     ports:
       - "3007:3000"
+
+  user-service:
+    build: ./user-service
+    container_name: user-service
+    ports:
+      - "3008:3000"
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+
+  admin-service:
+    build: ./admin-service
+    container_name: admin-service
+    ports:
+      - "3009:3000"
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+
+  chatbot-service:
+    build: ./chatbot-service
+    container_name: chatbot-service
+    ports:
+      - "3010:3000"
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+      - ai-service
+      - order-service
+      - tracking-service
+      - driver-service
 
   postgres:
     image: postgres:16
