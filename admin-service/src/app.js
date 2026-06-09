@@ -6,7 +6,12 @@ app.use(cors());
 app.use(express.json());
 
 app.get("/health", (req, res) => {
-  res.json({status: "OK"});
+  res.status(200).json({
+    service: process.env.SERVICE_NAME || "admin-service",
+    status: "UP",
+    environment: process.env.NODE_ENV || "development",
+    timestamp: new Date().toISOString()
+  });
 })
 
 export default app;

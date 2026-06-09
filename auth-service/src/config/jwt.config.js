@@ -1,14 +1,30 @@
 import jwt from "jsonwebtoken";
 
-const JWT_SECRET = process.env.JWT_SECRET || "supersecret";
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "60m";
+const ACCESS_SECRET = process.env.JWT_ACCESS_SECRET;
+const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
 
-export const generateToken = (payload) => {
-  return jwt.sign(payload, JWT_SECRET, {
-    expiresIn: JWT_EXPIRES_IN
+const ACCESS_EXPIRES =
+    process.env.ACCESS_TOKEN_EXPIRES_IN || "15m";
+
+const REFRESH_EXPIRES =
+    process.env.REFRESH_TOKEN_EXPIRES_IN || "7d";
+
+export const generateAccessToken = (payload) => {
+  return jwt.sign(payload, ACCESS_SECRET, {
+    expiresIn: ACCESS_EXPIRES
   });
 };
 
-export const verifyToken = (token) => {
-  return jwt.verify(token, JWT_SECRET);
-}
+export const generateRefreshToken = (payload) => {
+  return jwt.sign(payload, REFRESH_SECRET, {
+    expiresIn: REFRESH_EXPIRES
+  });
+};
+
+export const verifyAccessToken = (token) => {
+  return jwt.verify(token, ACCESS_SECRET);
+};
+
+export const verifyRefreshToken = (token) => {
+  return jwt.verify(token, REFRESH_SECRET);
+};
