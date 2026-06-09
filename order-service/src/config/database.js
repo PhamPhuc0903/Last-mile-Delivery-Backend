@@ -3,13 +3,12 @@ import pkg from "pg";
 const { Pool } = pkg;
 
 const pool = new Pool({
-  connectionString: process.env.DB_URL
+  connectionString: process.env.DATABASE_URL
 });
 
 pool.on("error", (err) => {
-  throw err;
+  console.error("PostgreSQL error:", err);
 });
 
-export default {
-  query: (text, params) => pool.query(text, params)
-};
+export const query = (text, params) =>
+    pool.query(text, params);
