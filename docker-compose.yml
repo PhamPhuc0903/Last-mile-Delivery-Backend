@@ -150,6 +150,9 @@ services:
     build: ./chatbot-service
     env_file:
       - ./chatbot-service/.env
+    environment:
+      DATABASE_URL: postgresql://delivery:delivery@postgres:5432/delivery_db?schema=chatbot
+      ORDER_SERVICE_URL: http://order-service:3000
     container_name: chatbot-service
     ports:
       - "3010:3000"
