@@ -1,7 +1,9 @@
 import express from "express";
 import cors from "cors";
+import orderRoutes from "./routes/order.routes.js";
 
 const app = express();
+
 app.use(cors());
 app.use(express.json());
 
@@ -12,6 +14,8 @@ app.get("/health", (req, res) => {
     environment: process.env.NODE_ENV || "development",
     timestamp: new Date().toISOString()
   });
-})
+});
 
-export default app
+app.use("/orders", orderRoutes);
+
+export default app;

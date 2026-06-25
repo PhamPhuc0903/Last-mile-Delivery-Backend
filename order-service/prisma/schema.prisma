@@ -1,0 +1,118 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  schemas  = ["orders"]
+}
+
+model Order {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  customerId String @map("customer_id") @db.Uuid
+
+  pickupAddressLine String  @map("pickup_address_line")
+  pickupWard        String? @map("pickup_ward") @db.VarChar(100)
+  pickupDistrict    String? @map("pickup_district") @db.VarChar(100)
+  pickupCity        String? @map("pickup_city") @db.VarChar(100)
+  pickupLat         Float?  @map("pickup_lat")
+  pickupLng         Float?  @map("pickup_lng")
+
+  receiverName  String @map("receiver_name") @db.VarChar(100)
+  receiverPhone String @map("receiver_phone") @db.VarChar(20)
+
+  deliveryAddressLine String  @map("delivery_address_line")
+  deliveryWard        String? @map("delivery_ward") @db.VarChar(100)
+  deliveryDistrict    String? @map("delivery_district") @db.VarChar(100)
+  deliveryCity        String? @map("delivery_city") @db.VarChar(100)
+  deliveryLat         Float?  @map("delivery_lat")
+  deliveryLng         Float?  @map("delivery_lng")
+
+  distanceKm  Float? @map("distance_km")
+  shippingFee Float? @map("shipping_fee")
+
+  paymentMethod PaymentMethod @default(COD) @map("payment_method")
+  paymentStatus PaymentStatus @default(UNPAID) @map("payment_status")
+
+  status OrderStatus @default(PENDING)
+
+  note String?
+
+  createdAt DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt DateTime? @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  items      OrderItem[]
+  statusLogs OrderStatusLog[]
+
+  @@index([customerId])
+  @@index([status])
+  @@map("orders")
+  @@schema("orders")
+}
+
+model OrderItem {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  orderId String @map("order_id") @db.Uuid
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  itemName String @map("item_name") @db.VarChar(150)
+  quantity Int    @default(1)
+  weightKg Float? @map("weight_kg")
+  note     String?
+
+  createdAt DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+
+  @@index([orderId])
+  @@map("order_items")
+  @@schema("orders")
+}
+
+model OrderStatusLog {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  orderId String @map("order_id") @db.Uuid
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  status    OrderStatus
+  changedBy String?     @map("changed_by") @db.Uuid
+  note      String?
+
+  createdAt DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+
+  @@index([orderId])
+  @@map("order_status_logs")
+  @@schema("orders")
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  ASSIGNED
+  PICKED_UP
+  IN_TRANSIT
+  DELIVERED
+  CANCELLED
+  FAILED
+
+  @@schema("orders")
+}
+
+enum PaymentMethod {
+  COD
+  BANK_TRANSFER
+  MOMO
+  VNPAY
+
+  @@schema("orders")
+}
+
+enum PaymentStatus {
+  UNPAID
+  PAID
+  REFUNDED
+  FAILED
+
+  @@schema("orders")
+}
