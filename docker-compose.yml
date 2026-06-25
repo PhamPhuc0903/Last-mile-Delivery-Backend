@@ -64,11 +64,15 @@ services:
     build: ./tracking-service
     env_file:
       - ./tracking-service/.env
+    environment:
+      DATABASE_URL: postgresql://delivery:delivery@postgres:5432/delivery_db?schema=tracking
     container_name: tracking-service
     ports:
       - "3004:3000"
     depends_on:
+      - postgres
       - redis
+      - rabbitmq
 
   dispatch-service:
     build: ./dispatch-service

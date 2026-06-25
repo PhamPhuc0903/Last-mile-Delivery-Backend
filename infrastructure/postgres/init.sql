@@ -380,3 +380,51 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_active_assignment_order
 CREATE UNIQUE INDEX IF NOT EXISTS uq_active_assignment_driver
     ON dispatch.delivery_assignments(driver_user_id)
     WHERE status IN ('PENDING', 'ACCEPTED');
+
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+CREATE SCHEMA IF NOT EXISTS tracking;
+
+DO $$
+BEGIN
+CREATE TYPE tracking."TrackingEventType" AS ENUM (
+        'LOCATION_UPDATE',
+        'PICKED_UP',
+        'IN_TRANSIT',
+        'DELIVERED',
+        'FAILED'
+    );
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+CREATE TABLE IF NOT EXISTS tracking.tracking_logs (
+                                                      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    order_id UUID NOT NULL,
+
+    driver_user_id UUID,
+    driver_profile_id UUID,
+
+    lat DOUBLE PRECISION NOT NULL,
+    lng DOUBLE PRECISION NOT NULL,
+
+    heading DOUBLE PRECISION,
+    speed DOUBLE PRECISION,
+
+    event_type tracking."TrackingEventType" NOT NULL DEFAULT 'LOCATION_UPDATE',
+
+    note TEXT,
+
+    recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+CREATE INDEX IF NOT EXISTS idx_tracking_logs_order_id
+    ON tracking.tracking_logs(order_id);
+
+CREATE INDEX IF NOT EXISTS idx_tracking_logs_driver_user_id
+    ON tracking.tracking_logs(driver_user_id);
+
+CREATE INDEX IF NOT EXISTS idx_tracking_logs_recorded_at
+    ON tracking.tracking_logs(recorded_at);
