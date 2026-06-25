@@ -428,3 +428,75 @@ CREATE INDEX IF NOT EXISTS idx_tracking_logs_driver_user_id
 
 CREATE INDEX IF NOT EXISTS idx_tracking_logs_recorded_at
     ON tracking.tracking_logs(recorded_at);
+
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+CREATE SCHEMA IF NOT EXISTS notifications;
+
+DO $$
+BEGIN
+CREATE TYPE notifications."NotificationType" AS ENUM (
+        'ORDER',
+        'PAYMENT',
+        'DRIVER',
+        'DISPATCH',
+        'SYSTEM',
+        'PROMOTION'
+    );
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$
+BEGIN
+CREATE TYPE notifications."NotificationChannel" AS ENUM (
+        'IN_APP',
+        'EMAIL',
+        'SMS',
+        'PUSH'
+    );
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$
+BEGIN
+CREATE TYPE notifications."NotificationStatus" AS ENUM (
+        'UNREAD',
+        'READ'
+    );
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+CREATE TABLE IF NOT EXISTS notifications.notifications (
+                                                           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    user_id UUID NOT NULL,
+
+    title VARCHAR(200) NOT NULL,
+    message TEXT NOT NULL,
+
+    type notifications."NotificationType" NOT NULL DEFAULT 'SYSTEM',
+    channel notifications."NotificationChannel" NOT NULL DEFAULT 'IN_APP',
+    status notifications."NotificationStatus" NOT NULL DEFAULT 'UNREAD',
+
+    metadata JSONB,
+
+    read_at TIMESTAMP,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+CREATE INDEX IF NOT EXISTS idx_notifications_user_id
+    ON notifications.notifications(user_id);
+
+CREATE INDEX IF NOT EXISTS idx_notifications_status
+    ON notifications.notifications(status);
+
+CREATE INDEX IF NOT EXISTS idx_notifications_type
+    ON notifications.notifications(type);
+
+CREATE INDEX IF NOT EXISTS idx_notifications_created_at
+    ON notifications.notifications(created_at);
