@@ -1,15 +1,29 @@
 import OpenAI from "openai";
 
-const client = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY
-});
+const getOpenAIClient = () => {
+    const apiKey = (process.env.OPENAI_API_KEY || "").trim();
 
-export const generateChatbotAnswer = async ({ question, orderContext, history }) => {
-    if (!process.env.OPENAI_API_KEY) {
+    if (!apiKey) {
+        return null;
+    }
+
+    return new OpenAI({
+        apiKey
+    });
+};
+
+export const generateChatbotAnswer = async ({
+                                                question,
+                                                orderContext,
+                                                history
+                                            }) => {
+    const client = getOpenAIClient();
+
+    if (!client) {
         return {
             provider: "fallback",
             answer:
-                "Hiện tại chatbot AI chưa được cấu hình OPENAI_API_KEY. Tôi có thể hỗ trợ cơ bản: vui lòng kiểm tra mã đơn hàng trong mục đơn hàng của bạn hoặc liên hệ hỗ trợ nếu đơn bị chậm."
+                "Hiện tại chatbot AI chưa được cấu hình OPENAI_API_KEY. Tôi có thể hỗ trợ cơ bản: vui lòng kiểm tra trạng thái đơn hàng trong hệ thống hoặc liên hệ hỗ trợ nếu đơn bị chậm."
         };
     }
 
