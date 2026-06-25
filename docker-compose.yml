@@ -99,6 +99,8 @@ services:
     build: ./user-service
     env_file:
       - ./user-service/.env
+    environment:
+      DATABASE_URL: postgresql://delivery:delivery@postgres:5432/delivery_db?schema=user_profile
     container_name: user-service
     ports:
       - "3008:3000"
