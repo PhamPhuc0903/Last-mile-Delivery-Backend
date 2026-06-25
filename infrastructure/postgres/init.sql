@@ -321,3 +321,62 @@ CREATE INDEX IF NOT EXISTS idx_driver_locations_driver_id
 
 CREATE INDEX IF NOT EXISTS idx_driver_locations_recorded_at
     ON drivers.driver_locations(recorded_at);
+
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+CREATE SCHEMA IF NOT EXISTS dispatch;
+
+DO $$
+BEGIN
+CREATE TYPE dispatch."AssignmentStatus" AS ENUM (
+        'PENDING',
+        'ACCEPTED',
+        'REJECTED',
+        'CANCELLED',
+        'COMPLETED',
+        'EXPIRED'
+    );
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+CREATE TABLE IF NOT EXISTS dispatch.delivery_assignments (
+                                                             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    order_id UUID NOT NULL,
+
+    driver_user_id UUID NOT NULL,
+    driver_profile_id UUID,
+
+    assigned_by UUID,
+
+    status dispatch."AssignmentStatus" NOT NULL DEFAULT 'PENDING',
+
+    reject_reason TEXT,
+    note TEXT,
+
+    accepted_at TIMESTAMP,
+    rejected_at TIMESTAMP,
+    cancelled_at TIMESTAMP,
+    completed_at TIMESTAMP,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+CREATE INDEX IF NOT EXISTS idx_delivery_assignments_order_id
+    ON dispatch.delivery_assignments(order_id);
+
+CREATE INDEX IF NOT EXISTS idx_delivery_assignments_driver_user_id
+    ON dispatch.delivery_assignments(driver_user_id);
+
+CREATE INDEX IF NOT EXISTS idx_delivery_assignments_status
+    ON dispatch.delivery_assignments(status);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_active_assignment_order
+    ON dispatch.delivery_assignments(order_id)
+    WHERE status IN ('PENDING', 'ACCEPTED');
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_active_assignment_driver
+    ON dispatch.delivery_assignments(driver_user_id)
+    WHERE status IN ('PENDING', 'ACCEPTED');
