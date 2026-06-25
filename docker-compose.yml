@@ -94,10 +94,14 @@ services:
     build: ./notification-service
     env_file:
       - ./notification-service/.env
+    environment:
+      DATABASE_URL: postgresql://delivery:delivery@postgres:5432/delivery_db?schema=notifications
     container_name: notification-service
     ports:
       - "3006:3000"
     depends_on:
+      - postgres
+      - redis
       - rabbitmq
 
   ai-service:

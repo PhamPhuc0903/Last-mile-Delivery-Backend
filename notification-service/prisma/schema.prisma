@@ -1,0 +1,62 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  schemas  = ["notifications"]
+}
+
+model Notification {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  userId String @map("user_id") @db.Uuid
+
+  title   String @db.VarChar(200)
+  message String
+
+  type    NotificationType    @default(SYSTEM)
+  channel NotificationChannel @default(IN_APP)
+  status  NotificationStatus  @default(UNREAD)
+
+  metadata Json?
+
+  readAt DateTime? @map("read_at") @db.Timestamp(6)
+
+  createdAt DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt DateTime? @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  @@index([userId])
+  @@index([status])
+  @@index([type])
+  @@index([createdAt])
+  @@map("notifications")
+  @@schema("notifications")
+}
+
+enum NotificationType {
+  ORDER
+  PAYMENT
+  DRIVER
+  DISPATCH
+  SYSTEM
+  PROMOTION
+
+  @@schema("notifications")
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+  SMS
+  PUSH
+
+  @@schema("notifications")
+}
+
+enum NotificationStatus {
+  UNREAD
+  READ
+
+  @@schema("notifications")
+}
