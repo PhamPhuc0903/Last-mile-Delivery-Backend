@@ -500,3 +500,113 @@ CREATE INDEX IF NOT EXISTS idx_notifications_type
 
 CREATE INDEX IF NOT EXISTS idx_notifications_created_at
     ON notifications.notifications(created_at);
+
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+CREATE SCHEMA IF NOT EXISTS ai;
+
+CREATE TABLE IF NOT EXISTS ai.ai_driver_recommendation_logs (
+                                                                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    order_id UUID,
+    pickup_lat DOUBLE PRECISION,
+    pickup_lng DOUBLE PRECISION,
+
+    selected_driver_user_id UUID,
+    selected_driver_profile_id UUID,
+
+    score DOUBLE PRECISION,
+    reason TEXT,
+
+    input JSONB,
+    output JSONB,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+CREATE TABLE IF NOT EXISTS ai.ai_eta_logs (
+                                              id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    order_id UUID,
+
+    distance_km DOUBLE PRECISION,
+    average_speed_kmh DOUBLE PRECISION,
+    traffic_level VARCHAR(30),
+
+    estimated_minutes INTEGER,
+
+    input JSONB,
+    output JSONB,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+CREATE TABLE IF NOT EXISTS ai.ai_anomaly_logs (
+                                                  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    order_id UUID,
+
+    anomaly_score DOUBLE PRECISION,
+    is_anomaly BOOLEAN DEFAULT FALSE,
+    reasons JSONB,
+
+    input JSONB,
+    output JSONB,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+CREATE INDEX IF NOT EXISTS idx_ai_driver_logs_order_id
+    ON ai.ai_driver_recommendation_logs(order_id);
+
+CREATE INDEX IF NOT EXISTS idx_ai_eta_logs_order_id
+    ON ai.ai_eta_logs(order_id);
+
+CREATE INDEX IF NOT EXISTS idx_ai_anomaly_logs_order_id
+    ON ai.ai_anomaly_logs(order_id);
+
+CREATE TABLE IF NOT EXISTS ai.ai_eta_training_samples (
+                                                          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    order_id UUID,
+
+    distance_km DOUBLE PRECISION NOT NULL,
+    average_speed_kmh DOUBLE PRECISION NOT NULL DEFAULT 25,
+    traffic_level VARCHAR(30) NOT NULL DEFAULT 'MEDIUM',
+
+    pickup_hour INTEGER NOT NULL,
+    vehicle_type VARCHAR(30) NOT NULL DEFAULT 'MOTORBIKE',
+
+    driver_rating DOUBLE PRECISION DEFAULT 5,
+    driver_total_deliveries INTEGER DEFAULT 0,
+
+    actual_minutes INTEGER NOT NULL,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+CREATE TABLE IF NOT EXISTS ai.ai_models (
+                                            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    model_name VARCHAR(100) NOT NULL,
+    model_version VARCHAR(100) NOT NULL,
+    model_type VARCHAR(100) NOT NULL,
+
+    weights JSONB NOT NULL,
+    metrics JSONB,
+
+    is_active BOOLEAN DEFAULT FALSE,
+
+    trained_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+CREATE INDEX IF NOT EXISTS idx_ai_eta_training_samples_order_id
+    ON ai.ai_eta_training_samples(order_id);
+
+CREATE INDEX IF NOT EXISTS idx_ai_models_model_name
+    ON ai.ai_models(model_name);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_ai_active_model_name
+    ON ai.ai_models(model_name)
+    WHERE is_active = TRUE;

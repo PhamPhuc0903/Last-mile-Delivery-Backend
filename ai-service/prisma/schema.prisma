@@ -1,0 +1,116 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  schemas  = ["ai"]
+}
+
+model AiDriverRecommendationLog {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  orderId   String? @map("order_id") @db.Uuid
+  pickupLat Float?  @map("pickup_lat")
+  pickupLng Float?  @map("pickup_lng")
+
+  selectedDriverUserId    String? @map("selected_driver_user_id") @db.Uuid
+  selectedDriverProfileId String? @map("selected_driver_profile_id") @db.Uuid
+
+  score  Float?
+  reason String?
+
+  input  Json?
+  output Json?
+
+  createdAt DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+
+  @@index([orderId])
+  @@map("ai_driver_recommendation_logs")
+  @@schema("ai")
+}
+
+model AiEtaLog {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  orderId String? @map("order_id") @db.Uuid
+
+  distanceKm      Float?  @map("distance_km")
+  averageSpeedKmh Float?  @map("average_speed_kmh")
+  trafficLevel    String? @map("traffic_level") @db.VarChar(30)
+
+  estimatedMinutes Int? @map("estimated_minutes")
+
+  input  Json?
+  output Json?
+
+  createdAt DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+
+  @@index([orderId])
+  @@map("ai_eta_logs")
+  @@schema("ai")
+}
+
+model AiAnomalyLog {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  orderId String? @map("order_id") @db.Uuid
+
+  anomalyScore Float?  @map("anomaly_score")
+  isAnomaly    Boolean? @default(false) @map("is_anomaly")
+  reasons      Json?
+
+  input  Json?
+  output Json?
+
+  createdAt DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+
+  @@index([orderId])
+  @@map("ai_anomaly_logs")
+  @@schema("ai")
+}
+
+model AiEtaTrainingSample {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  orderId String? @map("order_id") @db.Uuid
+
+  distanceKm      Float  @map("distance_km")
+  averageSpeedKmh Float  @default(25) @map("average_speed_kmh")
+  trafficLevel    String @default("MEDIUM") @map("traffic_level") @db.VarChar(30)
+
+  pickupHour Int @map("pickup_hour")
+
+  vehicleType String @default("MOTORBIKE") @map("vehicle_type") @db.VarChar(30)
+
+  driverRating          Float? @default(5) @map("driver_rating")
+  driverTotalDeliveries Int?   @default(0) @map("driver_total_deliveries")
+
+  actualMinutes Int @map("actual_minutes")
+
+  createdAt DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+
+  @@index([orderId])
+  @@map("ai_eta_training_samples")
+  @@schema("ai")
+}
+
+model AiModel {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  modelName    String @map("model_name") @db.VarChar(100)
+  modelVersion String @map("model_version") @db.VarChar(100)
+  modelType    String @map("model_type") @db.VarChar(100)
+
+  weights Json
+  metrics Json?
+
+  isActive Boolean? @default(false) @map("is_active")
+
+  trainedAt DateTime? @map("trained_at") @db.Timestamp(6)
+  createdAt DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+
+  @@index([modelName])
+  @@map("ai_models")
+  @@schema("ai")
+}

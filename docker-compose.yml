@@ -108,9 +108,17 @@ services:
     build: ./ai-service
     env_file:
       - ./ai-service/.env
+    environment:
+      DATABASE_URL: postgresql://delivery:delivery@postgres:5432/delivery_db?schema=ai
+      DRIVER_SERVICE_URL: http://driver-service:3000
     container_name: ai-service
     ports:
       - "3007:3000"
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+      - driver-service
 
   user-service:
     build: ./user-service
