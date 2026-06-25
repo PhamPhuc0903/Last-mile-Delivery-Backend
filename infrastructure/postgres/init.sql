@@ -233,3 +233,91 @@ CREATE INDEX IF NOT EXISTS idx_payment_transactions_customer_id
 
 CREATE INDEX IF NOT EXISTS idx_payment_transactions_status
     ON payments.payment_transactions(payment_status);
+
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+CREATE SCHEMA IF NOT EXISTS drivers;
+
+DO $$
+BEGIN
+CREATE TYPE drivers."DriverStatus" AS ENUM (
+        'OFFLINE',
+        'ONLINE',
+        'BUSY',
+        'SUSPENDED'
+    );
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$
+BEGIN
+CREATE TYPE drivers."DriverVerificationStatus" AS ENUM (
+        'PENDING',
+        'APPROVED',
+        'REJECTED'
+    );
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$
+BEGIN
+CREATE TYPE drivers."VehicleType" AS ENUM (
+        'MOTORBIKE',
+        'CAR',
+        'VAN'
+    );
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+CREATE TABLE IF NOT EXISTS drivers.drivers (
+                                               id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    user_id UUID UNIQUE NOT NULL,
+
+    license_number VARCHAR(100),
+    vehicle_type drivers."VehicleType" NOT NULL DEFAULT 'MOTORBIKE',
+    vehicle_plate VARCHAR(50),
+
+    status drivers."DriverStatus" NOT NULL DEFAULT 'OFFLINE',
+    verification_status drivers."DriverVerificationStatus" NOT NULL DEFAULT 'PENDING',
+
+    current_lat DOUBLE PRECISION,
+    current_lng DOUBLE PRECISION,
+
+    rating DOUBLE PRECISION DEFAULT 5,
+    total_deliveries INTEGER DEFAULT 0,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+CREATE TABLE IF NOT EXISTS drivers.driver_locations (
+                                                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    driver_id UUID NOT NULL REFERENCES drivers.drivers(id) ON DELETE CASCADE,
+
+    lat DOUBLE PRECISION NOT NULL,
+    lng DOUBLE PRECISION NOT NULL,
+    heading DOUBLE PRECISION,
+    speed DOUBLE PRECISION,
+
+    recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+CREATE INDEX IF NOT EXISTS idx_drivers_user_id
+    ON drivers.drivers(user_id);
+
+CREATE INDEX IF NOT EXISTS idx_drivers_status
+    ON drivers.drivers(status);
+
+CREATE INDEX IF NOT EXISTS idx_drivers_verification_status
+    ON drivers.drivers(verification_status);
+
+CREATE INDEX IF NOT EXISTS idx_driver_locations_driver_id
+    ON drivers.driver_locations(driver_id);
+
+CREATE INDEX IF NOT EXISTS idx_driver_locations_recorded_at
+    ON drivers.driver_locations(recorded_at);
