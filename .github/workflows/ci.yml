@@ -70,6 +70,7 @@ jobs:
           - user-service
           - admin-service
           - chatbot-service
+          - payment-service
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -97,6 +98,7 @@ jobs:
           - user-service
           - admin-service
           - chatbot-service
+          - payment-service
     steps:
       - uses: actions/checkout@v4
       - name: Build Docker image

@@ -1,0 +1,67 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  schemas  = ["payments"]
+}
+
+model PaymentTransaction {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  orderId    String @map("order_id") @db.Uuid
+  customerId String @map("customer_id") @db.Uuid
+
+  amount Float
+
+  paymentMethod PaymentMethod @map("payment_method")
+  paymentStatus PaymentStatus @default(UNPAID) @map("payment_status")
+  transactionType TransactionType @default(PAYMENT) @map("transaction_type")
+
+  provider              String? @db.VarChar(50)
+  providerTransactionId String? @map("provider_transaction_id") @db.VarChar(150)
+
+  note          String?
+  failureReason String? @map("failure_reason")
+
+  paidAt     DateTime? @map("paid_at") @db.Timestamp(6)
+  refundedAt DateTime? @map("refunded_at") @db.Timestamp(6)
+
+  createdAt DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt DateTime? @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  @@index([orderId])
+  @@index([customerId])
+  @@index([paymentStatus])
+  @@map("payment_transactions")
+  @@schema("payments")
+}
+
+enum PaymentMethod {
+  COD
+  BANK_TRANSFER
+  MOMO
+  VNPAY
+
+  @@schema("payments")
+}
+
+enum PaymentStatus {
+  UNPAID
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+  CANCELLED
+
+  @@schema("payments")
+}
+
+enum TransactionType {
+  PAYMENT
+  REFUND
+  COD_COLLECTION
+
+  @@schema("payments")
+}

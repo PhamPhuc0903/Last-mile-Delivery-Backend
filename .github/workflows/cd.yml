@@ -27,6 +27,7 @@ jobs:
           - user-service
           - admin-service
           - chatbot-service
+          - payment-service
 
     steps:
       - name: Checkout repo
