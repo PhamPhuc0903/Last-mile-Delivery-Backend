@@ -4,21 +4,34 @@ services:
 
   api-gateway:
     build: ./api-gateway
+    env_file:
+      - ./api-gateway/.env
+    environment:
+      PORT: 3000
+      AUTH_SERVICE_URL: http://auth-service:3000
+      USER_SERVICE_URL: http://user-service:3000
+      ORDER_SERVICE_URL: http://order-service:3000
+      PAYMENT_SERVICE_URL: http://payment-service:3000
+      DRIVER_SERVICE_URL: http://driver-service:3000
+      TRACKING_SERVICE_URL: http://tracking-service:3000
+      DISPATCH_SERVICE_URL: http://dispatch-service:3000
+      NOTIFICATION_SERVICE_URL: http://notification-service:3000
+      AI_SERVICE_URL: http://ai-service:3000
+      CHATBOT_SERVICE_URL: http://chatbot-service:3000
     container_name: api-gateway
     ports:
       - "3000:3000"
     depends_on:
       - auth-service
+      - user-service
       - order-service
+      - payment-service
       - driver-service
       - tracking-service
       - dispatch-service
       - notification-service
       - ai-service
-      - user-service
-      - admin-service
       - chatbot-service
-      - payment-service
 
   auth-service:
     build: ./auth-service
