@@ -158,12 +158,7 @@ services:
       - "3010:3000"
     depends_on:
       - postgres
-      - redis
-      - rabbitmq
-      - ai-service
       - order-service
-      - tracking-service
-      - driver-service
 
   payment-service:
     build: ./payment-service
