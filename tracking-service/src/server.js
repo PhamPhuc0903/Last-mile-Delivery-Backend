@@ -6,4 +6,4 @@ const SERVICE_NAME = process.env.SERVICE_NAME || "tracking-service";
 
 app.listen(PORT, () => {
   console.log(`${SERVICE_NAME} started on port ${PORT}`);
-})
+});

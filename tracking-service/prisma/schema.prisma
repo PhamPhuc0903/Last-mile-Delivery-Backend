@@ -1,0 +1,46 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  schemas  = ["tracking"]
+}
+
+model TrackingLog {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  orderId String @map("order_id") @db.Uuid
+
+  driverUserId    String? @map("driver_user_id") @db.Uuid
+  driverProfileId String? @map("driver_profile_id") @db.Uuid
+
+  lat Float
+  lng Float
+
+  heading Float?
+  speed   Float?
+
+  eventType TrackingEventType @default(LOCATION_UPDATE) @map("event_type")
+
+  note String?
+
+  recordedAt DateTime? @default(now()) @map("recorded_at") @db.Timestamp(6)
+  createdAt  DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+
+  @@index([orderId])
+  @@index([driverUserId])
+  @@index([recordedAt])
+  @@map("tracking_logs")
+  @@schema("tracking")
+}
+
+enum TrackingEventType {
+  LOCATION_UPDATE
+  PICKED_UP
+  IN_TRANSIT
+  DELIVERED
+  FAILED
+
+  @@schema("tracking")
+}
