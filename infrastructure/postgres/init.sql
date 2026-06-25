@@ -610,3 +610,42 @@ CREATE INDEX IF NOT EXISTS idx_ai_models_model_name
 CREATE UNIQUE INDEX IF NOT EXISTS uq_ai_active_model_name
     ON ai.ai_models(model_name)
     WHERE is_active = TRUE;
+
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+CREATE SCHEMA IF NOT EXISTS chatbot;
+
+CREATE TABLE IF NOT EXISTS chatbot.chat_sessions (
+                                                     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    user_id UUID NOT NULL,
+    order_id UUID,
+
+    title VARCHAR(200),
+    status VARCHAR(30) NOT NULL DEFAULT 'ACTIVE',
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+CREATE TABLE IF NOT EXISTS chatbot.chat_messages (
+                                                     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    session_id UUID NOT NULL REFERENCES chatbot.chat_sessions(id) ON DELETE CASCADE,
+
+    sender VARCHAR(30) NOT NULL,
+    message TEXT NOT NULL,
+
+    metadata JSONB,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+CREATE INDEX IF NOT EXISTS idx_chat_sessions_user_id
+    ON chatbot.chat_sessions(user_id);
+
+CREATE INDEX IF NOT EXISTS idx_chat_sessions_order_id
+    ON chatbot.chat_sessions(order_id);
+
+CREATE INDEX IF NOT EXISTS idx_chat_messages_session_id
+    ON chatbot.chat_messages(session_id);
