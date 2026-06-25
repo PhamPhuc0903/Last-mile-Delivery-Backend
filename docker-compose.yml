@@ -18,6 +18,7 @@ services:
       - user-service
       - admin-service
       - chatbot-service
+      - payment-service
 
   auth-service:
     build: ./auth-service
@@ -136,6 +137,21 @@ services:
       - order-service
       - tracking-service
       - driver-service
+
+  payment-service:
+    build: ./payment-service
+    env_file:
+      - ./payment-service/.env
+    environment:
+      PORT: 3000
+      DATABASE_URL: postgresql://delivery:delivery@postgres:5432/delivery_db?schema=payments
+    container_name: payment-service
+    ports:
+      - "3011:3000"
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
 
   postgres:
     image: postgres:16

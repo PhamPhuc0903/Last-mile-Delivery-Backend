@@ -160,3 +160,76 @@ CREATE INDEX IF NOT EXISTS idx_order_items_order_id
 
 CREATE INDEX IF NOT EXISTS idx_order_status_logs_order_id
     ON orders.order_status_logs(order_id);
+
+CREATE SCHEMA IF NOT EXISTS payments;
+
+DO $$
+BEGIN
+CREATE TYPE payments."PaymentMethod" AS ENUM (
+        'COD',
+        'BANK_TRANSFER',
+        'MOMO',
+        'VNPAY'
+    );
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$
+BEGIN
+CREATE TYPE payments."PaymentStatus" AS ENUM (
+        'UNPAID',
+        'PENDING',
+        'PAID',
+        'FAILED',
+        'REFUNDED',
+        'CANCELLED'
+    );
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+DO $$
+BEGIN
+CREATE TYPE payments."TransactionType" AS ENUM (
+        'PAYMENT',
+        'REFUND',
+        'COD_COLLECTION'
+    );
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
+
+CREATE TABLE IF NOT EXISTS payments.payment_transactions (
+                                                             id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    order_id UUID NOT NULL,
+    customer_id UUID NOT NULL,
+
+    amount DOUBLE PRECISION NOT NULL,
+
+    payment_method payments."PaymentMethod" NOT NULL,
+    payment_status payments."PaymentStatus" NOT NULL DEFAULT 'UNPAID',
+    transaction_type payments."TransactionType" NOT NULL DEFAULT 'PAYMENT',
+
+    provider VARCHAR(50),
+    provider_transaction_id VARCHAR(150),
+
+    note TEXT,
+    failure_reason TEXT,
+
+    paid_at TIMESTAMP,
+    refunded_at TIMESTAMP,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+CREATE INDEX IF NOT EXISTS idx_payment_transactions_order_id
+    ON payments.payment_transactions(order_id);
+
+CREATE INDEX IF NOT EXISTS idx_payment_transactions_customer_id
+    ON payments.payment_transactions(customer_id);
+
+CREATE INDEX IF NOT EXISTS idx_payment_transactions_status
+    ON payments.payment_transactions(payment_status);
