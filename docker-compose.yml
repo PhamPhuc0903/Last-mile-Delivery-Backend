@@ -23,6 +23,8 @@ services:
     build: ./auth-service
     env_file:
       - ./auth-service/.env
+    environment:
+      DATABASE_URL: postgresql://delivery:delivery@postgres:5432/delivery_db?schema=auth
     container_name: auth-service
     ports:
       - "3001:3000"
@@ -145,6 +147,7 @@ services:
       - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
 
   redis:
     image: redis:7
