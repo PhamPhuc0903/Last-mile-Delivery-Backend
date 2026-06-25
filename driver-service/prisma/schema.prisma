@@ -1,0 +1,82 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  schemas  = ["drivers"]
+}
+
+model Driver {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  userId String @unique @map("user_id") @db.Uuid
+
+  licenseNumber String?     @map("license_number") @db.VarChar(100)
+  vehicleType   VehicleType @default(MOTORBIKE) @map("vehicle_type")
+  vehiclePlate  String?     @map("vehicle_plate") @db.VarChar(50)
+
+  status             DriverStatus             @default(OFFLINE)
+  verificationStatus DriverVerificationStatus @default(PENDING) @map("verification_status")
+
+  currentLat Float? @map("current_lat")
+  currentLng Float? @map("current_lng")
+
+  rating          Float? @default(5)
+  totalDeliveries Int?   @default(0) @map("total_deliveries")
+
+  createdAt DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt DateTime? @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  locations DriverLocation[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([verificationStatus])
+  @@map("drivers")
+  @@schema("drivers")
+}
+
+model DriverLocation {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  driverId String @map("driver_id") @db.Uuid
+  driver   Driver @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  lat     Float
+  lng     Float
+  heading Float?
+  speed   Float?
+
+  recordedAt DateTime? @default(now()) @map("recorded_at") @db.Timestamp(6)
+
+  @@index([driverId])
+  @@index([recordedAt])
+  @@map("driver_locations")
+  @@schema("drivers")
+}
+
+enum DriverStatus {
+  OFFLINE
+  ONLINE
+  BUSY
+  SUSPENDED
+
+  @@schema("drivers")
+}
+
+enum DriverVerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+
+  @@schema("drivers")
+}
+
+enum VehicleType {
+  MOTORBIKE
+  CAR
+  VAN
+
+  @@schema("drivers")
+}
