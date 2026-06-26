@@ -3,7 +3,7 @@ import * as dispatchService from "../services/dispatch.service.js";
 export const createAssignment = async (req, res) => {
     try {
         const assignment = await dispatchService.createAssignment(
-            req.user.id,
+            req.user,
             req.body
         );
 
@@ -14,7 +14,7 @@ export const createAssignment = async (req, res) => {
     } catch (error) {
         console.error("Create assignment error:", error);
 
-        res.status(400).json({
+        res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });
@@ -24,7 +24,7 @@ export const createAssignment = async (req, res) => {
 export const autoAssign = async (req, res) => {
     try {
         const result = await dispatchService.autoAssign(
-            req.user.id,
+            req.user,
             req.body,
             req.headers.authorization
         );
@@ -36,7 +36,7 @@ export const autoAssign = async (req, res) => {
     } catch (error) {
         console.error("Auto assign error:", error);
 
-        res.status(400).json({
+        res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });
@@ -45,7 +45,10 @@ export const autoAssign = async (req, res) => {
 
 export const getAssignments = async (req, res) => {
     try {
-        const result = await dispatchService.getAssignments(req.query);
+        const result = await dispatchService.getAssignments(
+            req.user,
+            req.query
+        );
 
         res.status(200).json({
             success: true,
@@ -54,7 +57,7 @@ export const getAssignments = async (req, res) => {
     } catch (error) {
         console.error("Get assignments error:", error);
 
-        res.status(400).json({
+        res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });
@@ -72,7 +75,7 @@ export const getMyAssignments = async (req, res) => {
     } catch (error) {
         console.error("Get my assignments error:", error);
 
-        res.status(400).json({
+        res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });
@@ -90,7 +93,7 @@ export const getMyCurrentAssignment = async (req, res) => {
     } catch (error) {
         console.error("Get my current assignment error:", error);
 
-        res.status(400).json({
+        res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });
@@ -108,7 +111,7 @@ export const getMyHistory = async (req, res) => {
     } catch (error) {
         console.error("Get my history error:", error);
 
-        res.status(400).json({
+        res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });
@@ -129,7 +132,7 @@ export const getAssignmentById = async (req, res) => {
     } catch (error) {
         console.error("Get assignment error:", error);
 
-        res.status(404).json({
+        res.status(error.statusCode || 404).json({
             success: false,
             message: error.message
         });
@@ -139,7 +142,7 @@ export const getAssignmentById = async (req, res) => {
 export const acceptAssignment = async (req, res) => {
     try {
         const assignment = await dispatchService.acceptAssignment(
-            req.user.id,
+            req.user,
             req.params.id
         );
 
@@ -150,7 +153,7 @@ export const acceptAssignment = async (req, res) => {
     } catch (error) {
         console.error("Accept assignment error:", error);
 
-        res.status(400).json({
+        res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });
@@ -160,9 +163,9 @@ export const acceptAssignment = async (req, res) => {
 export const rejectAssignment = async (req, res) => {
     try {
         const assignment = await dispatchService.rejectAssignment(
-            req.user.id,
+            req.user,
             req.params.id,
-            req.body
+            req.body || {}
         );
 
         res.status(200).json({
@@ -172,7 +175,7 @@ export const rejectAssignment = async (req, res) => {
     } catch (error) {
         console.error("Reject assignment error:", error);
 
-        res.status(400).json({
+        res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });
@@ -182,8 +185,9 @@ export const rejectAssignment = async (req, res) => {
 export const cancelAssignment = async (req, res) => {
     try {
         const assignment = await dispatchService.cancelAssignment(
+            req.user,
             req.params.id,
-            req.body
+            req.body || {}
         );
 
         res.status(200).json({
@@ -193,7 +197,7 @@ export const cancelAssignment = async (req, res) => {
     } catch (error) {
         console.error("Cancel assignment error:", error);
 
-        res.status(400).json({
+        res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });
@@ -205,7 +209,7 @@ export const completeAssignment = async (req, res) => {
         const assignment = await dispatchService.completeAssignment(
             req.user,
             req.params.id,
-            req.body
+            req.body || {}
         );
 
         res.status(200).json({
@@ -215,7 +219,7 @@ export const completeAssignment = async (req, res) => {
     } catch (error) {
         console.error("Complete assignment error:", error);
 
-        res.status(400).json({
+        res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });
