@@ -2,7 +2,10 @@ import * as notificationService from "../services/notification.service.js";
 
 export const createNotification = async (req, res) => {
     try {
-        const notification = await notificationService.createNotification(req.body);
+        const notification = await notificationService.createNotification(
+            req.user,
+            req.body
+        );
 
         res.status(201).json({
             success: true,
@@ -11,7 +14,7 @@ export const createNotification = async (req, res) => {
     } catch (error) {
         console.error("Create notification error:", error);
 
-        res.status(400).json({
+        res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });
@@ -20,7 +23,10 @@ export const createNotification = async (req, res) => {
 
 export const createBulkNotifications = async (req, res) => {
     try {
-        const result = await notificationService.createBulkNotifications(req.body);
+        const result = await notificationService.createBulkNotifications(
+            req.user,
+            req.body
+        );
 
         res.status(201).json({
             success: true,
@@ -29,7 +35,7 @@ export const createBulkNotifications = async (req, res) => {
     } catch (error) {
         console.error("Create bulk notifications error:", error);
 
-        res.status(400).json({
+        res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });
@@ -39,7 +45,7 @@ export const createBulkNotifications = async (req, res) => {
 export const getMyNotifications = async (req, res) => {
     try {
         const result = await notificationService.getMyNotifications(
-            req.user.id,
+            req.user,
             req.query
         );
 
@@ -50,7 +56,7 @@ export const getMyNotifications = async (req, res) => {
     } catch (error) {
         console.error("Get my notifications error:", error);
 
-        res.status(400).json({
+        res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });
@@ -59,7 +65,7 @@ export const getMyNotifications = async (req, res) => {
 
 export const getUnreadCount = async (req, res) => {
     try {
-        const result = await notificationService.getUnreadCount(req.user.id);
+        const result = await notificationService.getUnreadCount(req.user);
 
         res.status(200).json({
             success: true,
@@ -68,7 +74,7 @@ export const getUnreadCount = async (req, res) => {
     } catch (error) {
         console.error("Get unread count error:", error);
 
-        res.status(400).json({
+        res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });
@@ -89,7 +95,7 @@ export const getNotificationById = async (req, res) => {
     } catch (error) {
         console.error("Get notification error:", error);
 
-        res.status(404).json({
+        res.status(error.statusCode || 404).json({
             success: false,
             message: error.message
         });
@@ -110,7 +116,7 @@ export const markAsRead = async (req, res) => {
     } catch (error) {
         console.error("Mark notification read error:", error);
 
-        res.status(400).json({
+        res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });
@@ -119,7 +125,7 @@ export const markAsRead = async (req, res) => {
 
 export const markAllAsRead = async (req, res) => {
     try {
-        const result = await notificationService.markAllAsRead(req.user.id);
+        const result = await notificationService.markAllAsRead(req.user);
 
         res.status(200).json({
             success: true,
@@ -128,7 +134,7 @@ export const markAllAsRead = async (req, res) => {
     } catch (error) {
         console.error("Mark all notifications read error:", error);
 
-        res.status(400).json({
+        res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });
@@ -149,7 +155,7 @@ export const deleteNotification = async (req, res) => {
     } catch (error) {
         console.error("Delete notification error:", error);
 
-        res.status(400).json({
+        res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });
