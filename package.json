@@ -22,5 +22,8 @@
   "homepage": "https://github.com/PhamPhuc0903/Last-mile-Delivery-Backend#readme",
   "dependencies": {
     "dotenv": "^17.4.2"
+  },
+  "devDependencies": {
+    "newman": "^6.2.2"
   }
 }

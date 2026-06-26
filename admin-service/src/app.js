@@ -1,11 +1,20 @@
-import express from "express";
+﻿import express from "express";
 import cors from "cors";
 import adminRoutes from "./routes/admin.routes.js";
+import { corsOptions, securityMiddleware } from "./middlewares/security.middleware.js";
+import {
+  errorHandler,
+  notFoundHandler
+} from "./middlewares/error.middleware.js";
 
 const app = express();
 
-app.use(cors());
-app.use(express.json());
+app.disable("x-powered-by");
+app.set("trust proxy", Number(process.env.TRUST_PROXY || 1));
+
+app.use(cors(corsOptions));
+app.use(securityMiddleware);
+app.use(express.json({ limit: process.env.JSON_BODY_LIMIT || "1mb" }));
 
 app.get("/health", (req, res) => {
   res.status(200).json({
@@ -18,11 +27,7 @@ app.get("/health", (req, res) => {
 
 app.use("/admin", adminRoutes);
 
-app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    message: "Admin route not found"
-  });
-});
+app.use(notFoundHandler);
+app.use(errorHandler);
 
 export default app;
