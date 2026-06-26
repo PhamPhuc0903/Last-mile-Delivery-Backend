@@ -1,5 +1,4 @@
 import bcrypt from "bcryptjs";
-import prisma from "../config/prisma.js";
 import {
     generateAccessToken,
     generateRefreshToken,
@@ -7,109 +6,15 @@ import {
     generateResetPasswordToken,
     verifyResetPasswordToken
 } from "../config/jwt.config.js";
+import * as authRepository from "../repositories/auth.repository.js";
 
-export const register = async ({ fullName, phone, email, password, role }) => {
-    if (!fullName || !phone || !password) {
-        throw new Error("fullName, phone and password are required");
-    }
-
-    const conditions = [{ phone }];
-
-    if (email) {
-        conditions.push({ email });
-    }
-
-    const existingUser = await prisma.user.findFirst({
-        where: {
-            OR: conditions
-        }
-    });
-
-    if (existingUser) {
-        throw new Error("Phone or email already exists");
-    }
-
-    const passwordHash = await bcrypt.hash(password, 10);
-
-    const user = await prisma.user.create({
-        data: {
-            fullName,
-            phone,
-            email: email || null,
-            passwordHash,
-            role: role || "CUSTOMER"
-        }
-    });
-
-    return {
-        id: user.id,
-        fullName: user.fullName,
-        phone: user.phone,
-        email: user.email,
-        role: user.role
-    };
+const createHttpError = (message, statusCode = 400) => {
+    const error = new Error(message);
+    error.statusCode = statusCode;
+    return error;
 };
 
-export const login = async ({ phone, email, password }) => {
-    if ((!phone && !email) || !password) {
-        throw new Error("phone/email and password are required");
-    }
-
-    const conditions = [];
-
-    if (phone) {
-        conditions.push({ phone });
-    }
-
-    if (email) {
-        conditions.push({ email });
-    }
-
-    const user = await prisma.user.findFirst({
-        where: {
-            OR: conditions
-        }
-    });
-
-    if (!user) {
-        throw new Error("Invalid credentials");
-    }
-
-    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
-
-    if (!isPasswordValid) {
-        throw new Error("Invalid credentials");
-    }
-
-    const payload = {
-        id: user.id,
-        role: user.role
-    };
-
-    return {
-        accessToken: generateAccessToken(payload),
-        refreshToken: generateRefreshToken(payload),
-        user: {
-            id: user.id,
-            fullName: user.fullName,
-            phone: user.phone,
-            email: user.email,
-            role: user.role
-        }
-    };
-};
-
-export const getMe = async (userId) => {
-    const user = await prisma.user.findUnique({
-        where: {
-            id: userId
-        }
-    });
-
-    if (!user) {
-        throw new Error("User not found");
-    }
-
+const sanitizeUser = (user) => {
     return {
         id: user.id,
         fullName: user.fullName,
@@ -121,21 +26,102 @@ export const getMe = async (userId) => {
     };
 };
 
-export const refreshToken = async (refreshTokenValue) => {
-    if (!refreshTokenValue) {
-        throw new Error("Refresh token is required");
+export const register = async ({ fullName, phone, email, password, role }) => {
+    if (!fullName || !phone || !password) {
+        throw createHttpError("fullName, phone and password are required", 400);
     }
 
-    const decoded = verifyRefreshToken(refreshTokenValue);
+    if (password.length < 6) {
+        throw createHttpError("Password must be at least 6 characters", 400);
+    }
 
-    const user = await prisma.user.findUnique({
-        where: {
-            id: decoded.id
-        }
+    const existingUser = await authRepository.findUserByPhoneOrEmail({
+        phone,
+        email
     });
 
+    if (existingUser) {
+        throw createHttpError("Phone or email already exists", 409);
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    const safeRole = role === "DRIVER" ? "DRIVER" : "CUSTOMER";
+
+    const user = await authRepository.createUser({
+        fullName,
+        phone,
+        email,
+        passwordHash,
+        role: safeRole
+    });
+
+    return sanitizeUser(user);
+};
+
+export const login = async ({ phone, email, password }) => {
+    if ((!phone && !email) || !password) {
+        throw createHttpError("phone/email and password are required", 400);
+    }
+
+    const user = await authRepository.findUserByPhoneOrEmail({
+        phone,
+        email
+    });
+
+    if (!user) {
+        throw createHttpError("Invalid credentials", 401);
+    }
+
+    if (user.status !== "ACTIVE") {
+        throw createHttpError("User account is not active", 403);
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+
+    if (!isPasswordValid) {
+        throw createHttpError("Invalid credentials", 401);
+    }
+
+    const payload = {
+        id: user.id,
+        role: user.role
+    };
+
+    return {
+        accessToken: generateAccessToken(payload),
+        refreshToken: generateRefreshToken(payload),
+        user: sanitizeUser(user)
+    };
+};
+
+export const getMe = async (userId) => {
+    const user = await authRepository.findUserById(userId);
+
+    if (!user) {
+        throw createHttpError("User not found", 404);
+    }
+
+    return sanitizeUser(user);
+};
+
+export const refreshToken = async (refreshTokenValue) => {
+    if (!refreshTokenValue) {
+        throw createHttpError("Refresh token is required", 400);
+    }
+
+    let decoded;
+
+    try {
+        decoded = verifyRefreshToken(refreshTokenValue);
+    } catch {
+        throw createHttpError("Invalid refresh token", 401);
+    }
+
+    const user = await authRepository.findUserById(decoded.id);
+
     if (!user || user.status !== "ACTIVE") {
-        throw new Error("Invalid refresh token");
+        throw createHttpError("Invalid refresh token", 401);
     }
 
     const payload = {
@@ -150,21 +136,21 @@ export const refreshToken = async (refreshTokenValue) => {
 
 export const changePassword = async (userId, { oldPassword, newPassword }) => {
     if (!oldPassword || !newPassword) {
-        throw new Error("oldPassword and newPassword are required");
+        throw createHttpError("oldPassword and newPassword are required", 400);
     }
 
     if (newPassword.length < 6) {
-        throw new Error("New password must be at least 6 characters");
+        throw createHttpError("New password must be at least 6 characters", 400);
     }
 
-    const user = await prisma.user.findUnique({
-        where: {
-            id: userId
-        }
-    });
+    const user = await authRepository.findUserById(userId);
 
     if (!user) {
-        throw new Error("User not found");
+        throw createHttpError("User not found", 404);
+    }
+
+    if (user.status !== "ACTIVE") {
+        throw createHttpError("User account is not active", 403);
     }
 
     const isOldPasswordValid = await bcrypt.compare(
@@ -173,18 +159,14 @@ export const changePassword = async (userId, { oldPassword, newPassword }) => {
     );
 
     if (!isOldPasswordValid) {
-        throw new Error("Old password is incorrect");
+        throw createHttpError("Old password is incorrect", 400);
     }
 
     const newPasswordHash = await bcrypt.hash(newPassword, 10);
 
-    await prisma.user.update({
-        where: {
-            id: userId
-        },
-        data: {
-            passwordHash: newPasswordHash
-        }
+    await authRepository.updateUserPassword({
+        userId,
+        passwordHash: newPasswordHash
     });
 
     return {
@@ -200,27 +182,20 @@ export const logout = async () => {
 
 export const forgotPassword = async ({ phone, email }) => {
     if (!phone && !email) {
-        throw new Error("phone or email is required");
+        throw createHttpError("phone or email is required", 400);
     }
 
-    const conditions = [];
-
-    if (phone) {
-        conditions.push({ phone });
-    }
-
-    if (email) {
-        conditions.push({ email });
-    }
-
-    const user = await prisma.user.findFirst({
-        where: {
-            OR: conditions
-        }
+    const user = await authRepository.findUserByPhoneOrEmail({
+        phone,
+        email
     });
 
     if (!user) {
-        throw new Error("User not found");
+        throw createHttpError("User not found", 404);
+    }
+
+    if (user.status !== "ACTIVE") {
+        throw createHttpError("User account is not active", 403);
     }
 
     const resetToken = generateResetPasswordToken({
@@ -236,38 +211,40 @@ export const forgotPassword = async ({ phone, email }) => {
 
 export const resetPassword = async ({ resetToken, newPassword }) => {
     if (!resetToken || !newPassword) {
-        throw new Error("resetToken and newPassword are required");
+        throw createHttpError("resetToken and newPassword are required", 400);
     }
 
     if (newPassword.length < 6) {
-        throw new Error("New password must be at least 6 characters");
+        throw createHttpError("New password must be at least 6 characters", 400);
     }
 
-    const decoded = verifyResetPasswordToken(resetToken);
+    let decoded;
+
+    try {
+        decoded = verifyResetPasswordToken(resetToken);
+    } catch {
+        throw createHttpError("Invalid reset token", 401);
+    }
 
     if (decoded.purpose !== "RESET_PASSWORD") {
-        throw new Error("Invalid reset token");
+        throw createHttpError("Invalid reset token", 401);
     }
 
-    const user = await prisma.user.findUnique({
-        where: {
-            id: decoded.id
-        }
-    });
+    const user = await authRepository.findUserById(decoded.id);
 
     if (!user) {
-        throw new Error("User not found");
+        throw createHttpError("User not found", 404);
+    }
+
+    if (user.status !== "ACTIVE") {
+        throw createHttpError("User account is not active", 403);
     }
 
     const newPasswordHash = await bcrypt.hash(newPassword, 10);
 
-    await prisma.user.update({
-        where: {
-            id: user.id
-        },
-        data: {
-            passwordHash: newPasswordHash
-        }
+    await authRepository.updateUserPassword({
+        userId: user.id,
+        passwordHash: newPasswordHash
     });
 
     return {

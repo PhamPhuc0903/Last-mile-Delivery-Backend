@@ -10,7 +10,8 @@ export const register = async (req, res) => {
         });
     } catch (error) {
         console.error("Register error:", error);
-        res.status(400).json({
+
+        res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });
@@ -27,7 +28,8 @@ export const login = async (req, res) => {
         });
     } catch (error) {
         console.error("Login error:", error);
-        res.status(401).json({
+
+        res.status(error.statusCode || 401).json({
             success: false,
             message: error.message
         });
@@ -45,7 +47,7 @@ export const me = async (req, res) => {
     } catch (error) {
         console.error("Get me error:", error);
 
-        res.status(404).json({
+        res.status(error.statusCode || 404).json({
             success: false,
             message: error.message
         });
@@ -65,7 +67,7 @@ export const refreshToken = async (req, res) => {
     } catch (error) {
         console.error("Refresh token error:", error);
 
-        res.status(401).json({
+        res.status(error.statusCode || 401).json({
             success: false,
             message: error.message
         });
@@ -83,7 +85,7 @@ export const changePassword = async (req, res) => {
     } catch (error) {
         console.error("Change password error:", error);
 
-        res.status(400).json({
+        res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });
@@ -92,7 +94,7 @@ export const changePassword = async (req, res) => {
 
 export const logout = async (req, res) => {
     try {
-        const result = await authService.logout();
+        const result = await authService.logout(req.user);
 
         res.status(200).json({
             success: true,
@@ -101,7 +103,7 @@ export const logout = async (req, res) => {
     } catch (error) {
         console.error("Logout error:", error);
 
-        res.status(400).json({
+        res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });
@@ -127,7 +129,7 @@ export const forgotPassword = async (req, res) => {
     } catch (error) {
         console.error("Forgot password error:", error);
 
-        res.status(400).json({
+        res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });
@@ -145,7 +147,7 @@ export const resetPassword = async (req, res) => {
     } catch (error) {
         console.error("Reset password error:", error);
 
-        res.status(400).json({
+        res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });
