@@ -18,6 +18,7 @@ services:
       NOTIFICATION_SERVICE_URL: http://notification-service:3000
       AI_SERVICE_URL: http://ai-service:3000
       CHATBOT_SERVICE_URL: http://chatbot-service:3000
+      ADMIN_SERVICE_URL: http://admin-service:3000
     container_name: api-gateway
     ports:
       - "3000:3000"
@@ -32,6 +33,7 @@ services:
       - notification-service
       - ai-service
       - chatbot-service
+      - admin-service
 
   auth-service:
     build: ./auth-service
@@ -151,13 +153,24 @@ services:
     build: ./admin-service
     env_file:
       - ./admin-service/.env
+    environment:
+      DATABASE_URL: postgresql://delivery:delivery@postgres:5432/delivery_db?schema=auth
+
+      AUTH_SERVICE_URL: http://auth-service:3000
+      USER_SERVICE_URL: http://user-service:3000
+      ORDER_SERVICE_URL: http://order-service:3000
+      PAYMENT_SERVICE_URL: http://payment-service:3000
+      DRIVER_SERVICE_URL: http://driver-service:3000
+      TRACKING_SERVICE_URL: http://tracking-service:3000
+      DISPATCH_SERVICE_URL: http://dispatch-service:3000
+      NOTIFICATION_SERVICE_URL: http://notification-service:3000
+      AI_SERVICE_URL: http://ai-service:3000
+      CHATBOT_SERVICE_URL: http://chatbot-service:3000
     container_name: admin-service
     ports:
       - "3009:3000"
     depends_on:
       - postgres
-      - redis
-      - rabbitmq
 
   chatbot-service:
     build: ./chatbot-service
