@@ -1,4 +1,14 @@
-import prisma from "../config/prisma.js";
+import * as orderRepository from "../repositories/order.repository.js";
+
+const createHttpError = (message, statusCode = 400) => {
+    const error = new Error(message);
+    error.statusCode = statusCode;
+    return error;
+};
+
+const isAdmin = (user) => user?.role === "ADMIN";
+const isCustomer = (user) => user?.role === "CUSTOMER";
+const isDriver = (user) => user?.role === "DRIVER";
 
 const calculateShippingFee = (distanceKm) => {
     if (!distanceKm) {
@@ -10,6 +20,66 @@ const calculateShippingFee = (distanceKm) => {
 
     return baseFee + distanceKm * feePerKm;
 };
+
+const assertCanAccessOrder = async (order, user) => {
+    if (!order) {
+        throw createHttpError("Order not found", 404);
+    }
+
+    if (isAdmin(user)) {
+        return;
+    }
+
+    if (isCustomer(user) && order.customerId === user.id) {
+        return;
+    }
+
+    if (isDriver(user)) {
+        const assigned = await orderRepository.isDriverAssignedToOrder(
+            order.id,
+            user.id
+        );
+
+        if (assigned) {
+            return;
+        }
+    }
+
+    throw createHttpError("Forbidden", 403);
+};
+
+const assertCanModifyOrder = (order, user) => {
+    if (!order) {
+        throw createHttpError("Order not found", 404);
+    }
+
+    if (isAdmin(user)) {
+        return;
+    }
+
+    if (isCustomer(user) && order.customerId === user.id) {
+        return;
+    }
+
+    throw createHttpError("Forbidden", 403);
+};
+
+const assertCanUpdateOrderStatus = (user) => {
+    if (!isAdmin(user)) {
+        throw createHttpError("Only admin can update order status", 403);
+    }
+};
+
+const allowedOrderStatuses = [
+    "PENDING",
+    "CONFIRMED",
+    "ASSIGNED",
+    "PICKED_UP",
+    "IN_TRANSIT",
+    "DELIVERED",
+    "CANCELLED",
+    "FAILED"
+];
 
 export const createOrder = async (userId, data) => {
     const {
@@ -38,14 +108,20 @@ export const createOrder = async (userId, data) => {
         items
     } = data;
 
-    if (!pickupAddressLine || !receiverName || !receiverPhone || !deliveryAddressLine) {
-        throw new Error(
-            "pickupAddressLine, receiverName, receiverPhone and deliveryAddressLine are required"
+    if (
+        !pickupAddressLine ||
+        !receiverName ||
+        !receiverPhone ||
+        !deliveryAddressLine
+    ) {
+        throw createHttpError(
+            "pickupAddressLine, receiverName, receiverPhone and deliveryAddressLine are required",
+            400
         );
     }
 
     if (!items || !Array.isArray(items) || items.length === 0) {
-        throw new Error("Order must have at least one item");
+        throw createHttpError("Order must have at least one item", 400);
     }
 
     const finalShippingFee =
@@ -53,236 +129,132 @@ export const createOrder = async (userId, data) => {
             ? shippingFee
             : calculateShippingFee(distanceKm);
 
-    const order = await prisma.$transaction(async (tx) => {
-        const createdOrder = await tx.order.create({
-            data: {
-                customerId: userId,
+    const orderData = {
+        pickupAddressLine,
+        pickupWard,
+        pickupDistrict,
+        pickupCity,
+        pickupLat,
+        pickupLng,
 
-                pickupAddressLine,
-                pickupWard,
-                pickupDistrict,
-                pickupCity,
-                pickupLat,
-                pickupLng,
+        receiverName,
+        receiverPhone,
 
-                receiverName,
-                receiverPhone,
+        deliveryAddressLine,
+        deliveryWard,
+        deliveryDistrict,
+        deliveryCity,
+        deliveryLat,
+        deliveryLng,
 
-                deliveryAddressLine,
-                deliveryWard,
-                deliveryDistrict,
-                deliveryCity,
-                deliveryLat,
-                deliveryLng,
+        distanceKm,
+        shippingFee: finalShippingFee,
 
-                distanceKm,
-                shippingFee: finalShippingFee,
+        paymentMethod: paymentMethod || "COD",
+        note
+    };
 
-                paymentMethod: paymentMethod || "COD",
-                note,
-
-                items: {
-                    create: items.map((item) => ({
-                        itemName: item.itemName,
-                        quantity: item.quantity || 1,
-                        weightKg: item.weightKg,
-                        note: item.note
-                    }))
-                }
-            },
-            include: {
-                items: true,
-                statusLogs: true
-            }
-        });
-
-        await tx.orderStatusLog.create({
-            data: {
-                orderId: createdOrder.id,
-                status: "PENDING",
-                changedBy: userId,
-                note: "Order created"
-            }
-        });
-
-        return tx.order.findUnique({
-            where: {
-                id: createdOrder.id
-            },
-            include: {
-                items: true,
-                statusLogs: {
-                    orderBy: {
-                        createdAt: "desc"
-                    }
-                }
-            }
-        });
+    return orderRepository.createOrderWithItemsAndInitialLog({
+        customerId: userId,
+        orderData,
+        items
     });
-
-    return order;
 };
 
 export const getMyOrders = async (userId) => {
-    return prisma.order.findMany({
-        where: {
-            customerId: userId
-        },
-        include: {
-            items: true
-        },
-        orderBy: {
-            createdAt: "desc"
-        }
-    });
+    return orderRepository.findMyOrders(userId);
 };
 
 export const getOrderById = async (user, orderId) => {
-    const where =
-        user.role === "ADMIN"
-            ? {
-                id: orderId
-            }
-            : {
-                id: orderId,
-                customerId: user.id
-            };
+    const order = await orderRepository.findOrderByIdWithDetails(orderId);
 
-    const order = await prisma.order.findFirst({
-        where,
-        include: {
-            items: true,
-            statusLogs: {
-                orderBy: {
-                    createdAt: "desc"
-                }
-            }
-        }
-    });
-
-    if (!order) {
-        throw new Error("Order not found");
-    }
+    await assertCanAccessOrder(order, user);
 
     return order;
 };
 
-export const cancelOrder = async (userId, orderId) => {
-    const order = await prisma.order.findFirst({
-        where: {
-            id: orderId,
-            customerId: userId
-        }
-    });
+export const cancelOrder = async (user, orderId, data = {}) => {
+    const order = await orderRepository.findOrderById(orderId);
 
-    if (!order) {
-        throw new Error("Order not found");
-    }
+    assertCanModifyOrder(order, user);
 
     if (!["PENDING", "CONFIRMED"].includes(order.status)) {
-        throw new Error("Only PENDING or CONFIRMED orders can be cancelled");
+        throw createHttpError("Only PENDING or CONFIRMED orders can be cancelled", 400);
     }
 
-    const updatedOrder = await prisma.$transaction(async (tx) => {
-        const cancelledOrder = await tx.order.update({
-            where: {
-                id: orderId
-            },
-            data: {
-                status: "CANCELLED",
-                updatedAt: new Date()
-            },
-            include: {
-                items: true
-            }
-        });
+    const note =
+        data.reason ||
+        (isAdmin(user)
+            ? "Order cancelled by admin"
+            : "Order cancelled by customer");
 
-        await tx.orderStatusLog.create({
-            data: {
-                orderId,
-                status: "CANCELLED",
-                changedBy: userId,
-                note: "Order cancelled by customer"
-            }
-        });
-
-        return cancelledOrder;
+    return orderRepository.cancelOrderWithLog({
+        orderId,
+        userId: user.id,
+        note
     });
-
-    return updatedOrder;
 };
 
-export const updateOrderStatus = async (userId, orderId, { status, note }) => {
+export const updateOrderStatus = async (user, orderId, { status, note }) => {
+    assertCanUpdateOrderStatus(user);
+
     if (!status) {
-        throw new Error("status is required");
+        throw createHttpError("status is required", 400);
     }
 
-    const allowedStatuses = [
-        "PENDING",
-        "CONFIRMED",
-        "ASSIGNED",
-        "PICKED_UP",
-        "IN_TRANSIT",
-        "DELIVERED",
-        "CANCELLED",
-        "FAILED"
-    ];
-
-    if (!allowedStatuses.includes(status)) {
-        throw new Error("Invalid order status");
+    if (!allowedOrderStatuses.includes(status)) {
+        throw createHttpError("Invalid order status", 400);
     }
 
-    const order = await prisma.order.findUnique({
-        where: {
-            id: orderId
-        }
-    });
+    const order = await orderRepository.findOrderById(orderId);
 
     if (!order) {
-        throw new Error("Order not found");
+        throw createHttpError("Order not found", 404);
     }
 
-    const updatedOrder = await prisma.$transaction(async (tx) => {
-        const result = await tx.order.update({
-            where: {
-                id: orderId
-            },
-            data: {
-                status,
-                updatedAt: new Date()
-            },
-            include: {
-                items: true
-            }
-        });
-
-        await tx.orderStatusLog.create({
-            data: {
-                orderId,
-                status,
-                changedBy: userId,
-                note: note || `Order status changed to ${status}`
-            }
-        });
-
-        return result;
+    return orderRepository.updateOrderStatusWithLog({
+        orderId,
+        status,
+        userId: user.id,
+        note: note || `Order status changed to ${status}`
     });
-
-    return updatedOrder;
 };
-export const getOrders = async (user, query) => {
+
+export const getOrders = async (user, query = {}) => {
     const page = Number(query.page) > 0 ? Number(query.page) : 1;
-    const limit = Number(query.limit) > 0 ? Number(query.limit) : 10;
+    const limit = Number(query.limit) > 0 ? Math.min(Number(query.limit), 100) : 10;
     const skip = (page - 1) * limit;
 
     const where = {};
 
-    if (user.role !== "ADMIN") {
+    if (isAdmin(user)) {
+        if (query.customerId) {
+            where.customerId = query.customerId;
+        }
+    } else if (isCustomer(user)) {
         where.customerId = user.id;
-    }
+    } else if (isDriver(user)) {
+        const assignedOrderIds = await orderRepository.getAssignedOrderIdsOfDriver(
+            user.id
+        );
 
-    if (user.role === "ADMIN" && query.customerId) {
-        where.customerId = query.customerId;
+        if (assignedOrderIds.length === 0) {
+            return {
+                items: [],
+                pagination: {
+                    page,
+                    limit,
+                    total: 0,
+                    totalPages: 0
+                }
+            };
+        }
+
+        where.id = {
+            in: assignedOrderIds
+        };
+    } else {
+        throw createHttpError("Forbidden", 403);
     }
 
     if (query.status) {
@@ -290,20 +262,12 @@ export const getOrders = async (user, query) => {
     }
 
     const [orders, total] = await Promise.all([
-        prisma.order.findMany({
+        orderRepository.findOrders({
             where,
-            include: {
-                items: true
-            },
-            orderBy: {
-                createdAt: "desc"
-            },
             skip,
-            take: limit
+            limit
         }),
-        prisma.order.count({
-            where
-        })
+        orderRepository.countOrders(where)
     ]);
 
     return {
@@ -318,25 +282,12 @@ export const getOrders = async (user, query) => {
 };
 
 export const updateOrder = async (user, orderId, data) => {
-    const existingOrder = await prisma.order.findFirst({
-        where:
-            user.role === "ADMIN"
-                ? { id: orderId }
-                : {
-                    id: orderId,
-                    customerId: user.id
-                },
-        include: {
-            items: true
-        }
-    });
+    const existingOrder = await orderRepository.findOrderByIdWithItems(orderId);
 
-    if (!existingOrder) {
-        throw new Error("Order not found");
-    }
+    assertCanModifyOrder(existingOrder, user);
 
     if (!["PENDING", "CONFIRMED"].includes(existingOrder.status)) {
-        throw new Error("Only PENDING or CONFIRMED orders can be updated");
+        throw createHttpError("Only PENDING or CONFIRMED orders can be updated", 400);
     }
 
     const {
@@ -366,116 +317,61 @@ export const updateOrder = async (user, orderId, data) => {
 
     if (items !== undefined) {
         if (!Array.isArray(items) || items.length === 0) {
-            throw new Error("items must be a non-empty array");
+            throw createHttpError("items must be a non-empty array", 400);
         }
 
         for (const item of items) {
             if (!item.itemName) {
-                throw new Error("itemName is required");
+                throw createHttpError("itemName is required", 400);
             }
         }
     }
 
-    const updatedOrder = await prisma.$transaction(async (tx) => {
-        const order = await tx.order.update({
-            where: {
-                id: orderId
-            },
-            data: {
-                pickupAddressLine,
-                pickupWard,
-                pickupDistrict,
-                pickupCity,
-                pickupLat,
-                pickupLng,
+    const finalShippingFee =
+        shippingFee !== undefined && shippingFee !== null
+            ? shippingFee
+            : distanceKm !== undefined && distanceKm !== null
+                ? calculateShippingFee(distanceKm)
+                : undefined;
 
-                receiverName,
-                receiverPhone,
+    const orderData = {
+        pickupAddressLine,
+        pickupWard,
+        pickupDistrict,
+        pickupCity,
+        pickupLat,
+        pickupLng,
 
-                deliveryAddressLine,
-                deliveryWard,
-                deliveryDistrict,
-                deliveryCity,
-                deliveryLat,
-                deliveryLng,
+        receiverName,
+        receiverPhone,
 
-                distanceKm,
-                shippingFee,
-                paymentMethod,
-                note,
+        deliveryAddressLine,
+        deliveryWard,
+        deliveryDistrict,
+        deliveryCity,
+        deliveryLat,
+        deliveryLng,
 
-                updatedAt: new Date()
-            }
-        });
+        distanceKm,
+        shippingFee: finalShippingFee,
+        paymentMethod,
+        note
+    };
 
-        if (items !== undefined) {
-            await tx.orderItem.deleteMany({
-                where: {
-                    orderId
-                }
-            });
-
-            await tx.orderItem.createMany({
-                data: items.map((item) => ({
-                    orderId,
-                    itemName: item.itemName,
-                    quantity: item.quantity || 1,
-                    weightKg: item.weightKg,
-                    note: item.note
-                }))
-            });
-        }
-
-        await tx.orderStatusLog.create({
-            data: {
-                orderId,
-                status: order.status,
-                changedBy: user.id,
-                note: "Order information updated"
-            }
-        });
-
-        return tx.order.findUnique({
-            where: {
-                id: orderId
-            },
-            include: {
-                items: true,
-                statusLogs: {
-                    orderBy: {
-                        createdAt: "desc"
-                    }
-                }
-            }
-        });
+    return orderRepository.updateOrderWithOptionalItems({
+        orderId,
+        orderData,
+        items,
+        userId: user.id
     });
-
-    return updatedOrder;
 };
 
 export const getOrderTimeline = async (user, orderId) => {
-    const order = await prisma.order.findFirst({
-        where:
-            user.role === "ADMIN"
-                ? { id: orderId }
-                : {
-                    id: orderId,
-                    customerId: user.id
-                }
-    });
+    const order = await orderRepository.findOrderById(orderId);
 
-    if (!order) {
-        throw new Error("Order not found");
-    }
+    await assertCanAccessOrder(order, user);
 
-    return prisma.orderStatusLog.findMany({
-        where: {
-            orderId
-        },
-        orderBy: {
-            createdAt: "asc"
-        }
-    });
+    return orderRepository.findOrderTimeline(orderId);
 };
 
 const getDateRange = (type) => {
@@ -497,6 +393,10 @@ const getDateRange = (type) => {
     if (type === "year") {
         startDate = new Date(now.getFullYear(), 0, 1);
         endDate = new Date(now.getFullYear() + 1, 0, 1);
+    }
+
+    if (!startDate || !endDate) {
+        throw createHttpError("Invalid stats period", 400);
     }
 
     return {
@@ -527,24 +427,16 @@ export const getOrderStats = async (type) => {
         failedOrders,
         shippingFeeResult
     ] = await Promise.all([
-        prisma.order.count({ where }),
-        prisma.order.count({ where: { ...where, status: "PENDING" } }),
-        prisma.order.count({ where: { ...where, status: "CONFIRMED" } }),
-        prisma.order.count({ where: { ...where, status: "ASSIGNED" } }),
-        prisma.order.count({ where: { ...where, status: "PICKED_UP" } }),
-        prisma.order.count({ where: { ...where, status: "IN_TRANSIT" } }),
-        prisma.order.count({ where: { ...where, status: "DELIVERED" } }),
-        prisma.order.count({ where: { ...where, status: "CANCELLED" } }),
-        prisma.order.count({ where: { ...where, status: "FAILED" } }),
-        prisma.order.aggregate({
-            where: {
-                ...where,
-                status: "DELIVERED"
-            },
-            _sum: {
-                shippingFee: true
-            }
-        })
+        orderRepository.countOrders(where),
+        orderRepository.countOrders({ ...where, status: "PENDING" }),
+        orderRepository.countOrders({ ...where, status: "CONFIRMED" }),
+        orderRepository.countOrders({ ...where, status: "ASSIGNED" }),
+        orderRepository.countOrders({ ...where, status: "PICKED_UP" }),
+        orderRepository.countOrders({ ...where, status: "IN_TRANSIT" }),
+        orderRepository.countOrders({ ...where, status: "DELIVERED" }),
+        orderRepository.countOrders({ ...where, status: "CANCELLED" }),
+        orderRepository.countOrders({ ...where, status: "FAILED" }),
+        orderRepository.aggregateDeliveredShippingFee(where)
     ]);
 
     return {
