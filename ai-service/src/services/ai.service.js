@@ -1,5 +1,5 @@
-import prisma from "../config/prisma.js";
 import { analyzeOrderRiskWithLLM } from "./llm.service.js";
+import * as aiRepository from "../repositories/ai.repository.js";
 
 const ETA_MODEL_NAME = "ETA_PREDICTION";
 const ETA_MODEL_TYPE = "LINEAR_REGRESSION_NODE_JS";
@@ -16,14 +16,81 @@ const FEATURE_NAMES = [
     "driverExperience"
 ];
 
+const TRAFFIC_LEVELS = ["LOW", "MEDIUM", "HIGH"];
+const VEHICLE_TYPES = ["MOTORBIKE", "CAR", "VAN"];
+
+const createHttpError = (message, statusCode = 400) => {
+    const error = new Error(message);
+    error.statusCode = statusCode;
+    return error;
+};
+
+const assertPositiveNumber = (value, fieldName) => {
+    const numberValue = Number(value);
+
+    if (Number.isNaN(numberValue) || numberValue <= 0) {
+        throw createHttpError(`${fieldName} must be greater than 0`, 400);
+    }
+
+    return numberValue;
+};
+
+const assertLatLng = (lat, lng) => {
+    if (lat === undefined || lng === undefined) {
+        throw createHttpError("pickupLat and pickupLng are required", 400);
+    }
+
+    const numberLat = Number(lat);
+    const numberLng = Number(lng);
+
+    if (Number.isNaN(numberLat) || Number.isNaN(numberLng)) {
+        throw createHttpError("pickupLat and pickupLng must be valid numbers", 400);
+    }
+
+    if (numberLat < -90 || numberLat > 90) {
+        throw createHttpError("pickupLat must be between -90 and 90", 400);
+    }
+
+    if (numberLng < -180 || numberLng > 180) {
+        throw createHttpError("pickupLng must be between -180 and 180", 400);
+    }
+
+    return {
+        pickupLat: numberLat,
+        pickupLng: numberLng
+    };
+};
+
+const normalizeTrafficLevel = (trafficLevel = "MEDIUM") => {
+    const normalized = String(trafficLevel).toUpperCase();
+
+    if (!TRAFFIC_LEVELS.includes(normalized)) {
+        throw createHttpError("Invalid trafficLevel", 400);
+    }
+
+    return normalized;
+};
+
+const normalizeVehicleType = (vehicleType = "MOTORBIKE") => {
+    const normalized = String(vehicleType).toUpperCase();
+
+    if (!VEHICLE_TYPES.includes(normalized)) {
+        throw createHttpError("Invalid vehicleType", 400);
+    }
+
+    return normalized;
+};
+
 const getTrafficScore = (trafficLevel) => {
+    const level = normalizeTrafficLevel(trafficLevel);
+
     const scores = {
         LOW: 0.2,
         MEDIUM: 0.6,
         HIGH: 1
     };
 
-    return scores[trafficLevel] ?? 0.6;
+    return scores[level];
 };
 
 const isPeakHour = (hour) => {
@@ -36,7 +103,11 @@ const buildEtaFeatures = (data) => {
             ? Number(data.pickupHour)
             : new Date().getHours();
 
-    const vehicleType = data.vehicleType || "MOTORBIKE";
+    if (Number.isNaN(pickupHour) || pickupHour < 0 || pickupHour > 23) {
+        throw createHttpError("pickupHour must be between 0 and 23", 400);
+    }
+
+    const vehicleType = normalizeVehicleType(data.vehicleType || "MOTORBIKE");
 
     return [
         Number(data.distanceKm || 0) / 50,
@@ -70,9 +141,12 @@ const predictNormalized = (features, weights, bias) => {
 };
 
 const fallbackEtaPrediction = (data) => {
-    const distanceKm = Number(data.distanceKm);
-    const averageSpeedKmh = Number(data.averageSpeedKmh || 25);
-    const trafficLevel = data.trafficLevel || "MEDIUM";
+    const distanceKm = assertPositiveNumber(data.distanceKm, "distanceKm");
+    const averageSpeedKmh = assertPositiveNumber(
+        data.averageSpeedKmh || 25,
+        "averageSpeedKmh"
+    );
+    const trafficLevel = normalizeTrafficLevel(data.trafficLevel || "MEDIUM");
 
     const trafficMultipliers = {
         LOW: 1,
@@ -80,10 +154,12 @@ const fallbackEtaPrediction = (data) => {
         HIGH: 1.6
     };
 
-    const multiplier = trafficMultipliers[trafficLevel] || 1.25;
+    const multiplier = trafficMultipliers[trafficLevel];
 
-    const estimatedMinutes = Math.ceil(
-        (distanceKm / averageSpeedKmh) * 60 * multiplier
+    const estimatedMinutes = clamp(
+        Math.ceil((distanceKm / averageSpeedKmh) * 60 * multiplier),
+        1,
+        240
     );
 
     return {
@@ -101,21 +177,61 @@ const calculateDriverScore = (driver) => {
     const ratingScore = (driver.rating || 5) * 10;
     const experienceScore = Math.min(driver.totalDeliveries || 0, 100) * 0.2;
 
-    return Number((distanceScore * 0.6 + ratingScore * 0.3 + experienceScore * 0.1).toFixed(2));
+    return Number(
+        (distanceScore * 0.6 + ratingScore * 0.3 + experienceScore * 0.1).toFixed(2)
+    );
+};
+
+const parseJsonResponse = async (response) => {
+    try {
+        return await response.json();
+    } catch {
+        return null;
+    }
+};
+
+const getPaginatedResult = async ({
+                                      query = {},
+                                      findItems,
+                                      countItems
+                                  }) => {
+    const page = Number(query.page) > 0 ? Number(query.page) : 1;
+    const limit = Number(query.limit) > 0 ? Math.min(Number(query.limit), 100) : 10;
+    const skip = (page - 1) * limit;
+
+    const where = {};
+
+    if (query.orderId) {
+        where.orderId = query.orderId;
+    }
+
+    const [items, total] = await Promise.all([
+        findItems({
+            where,
+            skip,
+            limit
+        }),
+        countItems(where)
+    ]);
+
+    return {
+        items,
+        pagination: {
+            page,
+            limit,
+            total,
+            totalPages: Math.ceil(total / limit)
+        }
+    };
 };
 
 export const recommendDriver = async (data, authorizationHeader) => {
-    const {
-        orderId,
-        pickupLat,
-        pickupLng,
-        radiusKm,
-        drivers
-    } = data;
+    const { orderId, radiusKm, drivers } = data;
 
-    if (!pickupLat || !pickupLng) {
-        throw new Error("pickupLat and pickupLng are required");
-    }
+    const { pickupLat, pickupLng } = assertLatLng(
+        data.pickupLat,
+        data.pickupLng
+    );
 
     let candidateDrivers = drivers;
 
@@ -123,27 +239,29 @@ export const recommendDriver = async (data, authorizationHeader) => {
         const driverServiceUrl =
             process.env.DRIVER_SERVICE_URL || "http://localhost:3003";
 
+        const finalRadiusKm = Number(radiusKm) > 0 ? Number(radiusKm) : 5;
+
         const url =
             `${driverServiceUrl}/drivers/nearby` +
-            `?lat=${pickupLat}&lng=${pickupLng}&radiusKm=${radiusKm || 5}`;
+            `?lat=${pickupLat}&lng=${pickupLng}&radiusKm=${finalRadiusKm}`;
 
         const response = await fetch(url, {
             headers: {
-                Authorization: authorizationHeader
+                Authorization: authorizationHeader || ""
             }
         });
 
-        const json = await response.json();
+        const json = await parseJsonResponse(response);
 
-        if (!response.ok || !json.success) {
-            throw new Error(json.message || "Cannot get nearby drivers");
+        if (!response.ok || !json?.success) {
+            throw createHttpError(json?.message || "Cannot get nearby drivers", 400);
         }
 
         candidateDrivers = json.data || [];
     }
 
     if (candidateDrivers.length === 0) {
-        throw new Error("No candidate drivers found");
+        throw createHttpError("No candidate drivers found", 404);
     }
 
     const rankedDrivers = candidateDrivers
@@ -161,52 +279,60 @@ export const recommendDriver = async (data, authorizationHeader) => {
         reason: "Selected by distance, rating and delivery experience"
     };
 
-    await prisma.aiDriverRecommendationLog.create({
-        data: {
-            orderId: orderId || null,
-            pickupLat,
-            pickupLng,
-            selectedDriverUserId: selectedDriver.userId || null,
-            selectedDriverProfileId: selectedDriver.id || null,
-            score: selectedDriver.aiScore,
-            reason: output.reason,
-            input: data,
-            output
-        }
+    await aiRepository.createDriverRecommendationLog({
+        orderId: orderId || null,
+        pickupLat,
+        pickupLng,
+        selectedDriverUserId: selectedDriver.userId || null,
+        selectedDriverProfileId: selectedDriver.id || null,
+        score: selectedDriver.aiScore,
+        reason: output.reason,
+        input: data,
+        output
     });
 
     return output;
 };
 
 export const predictEta = async (data) => {
-    const {
-        orderId,
-        distanceKm,
-        averageSpeedKmh,
-        trafficLevel
-    } = data;
+    const { orderId, averageSpeedKmh } = data;
 
-    if (distanceKm === undefined) {
-        throw new Error("distanceKm is required");
-    }
+    const distanceKm = assertPositiveNumber(data.distanceKm, "distanceKm");
+    const finalAverageSpeedKmh = assertPositiveNumber(
+        averageSpeedKmh || 25,
+        "averageSpeedKmh"
+    );
+    const trafficLevel = normalizeTrafficLevel(data.trafficLevel || "MEDIUM");
 
-    const activeModel = await prisma.aiModel.findFirst({
-        where: {
-            modelName: ETA_MODEL_NAME,
-            isActive: true
-        },
-        orderBy: {
-            trainedAt: "desc"
-        }
-    });
+    const activeModel = await aiRepository.findActiveEtaModel(ETA_MODEL_NAME);
 
     let output;
 
     if (!activeModel) {
-        output = fallbackEtaPrediction(data);
+        output = fallbackEtaPrediction({
+            ...data,
+            distanceKm,
+            averageSpeedKmh: finalAverageSpeedKmh,
+            trafficLevel
+        });
     } else {
-        const features = buildEtaFeatures(data);
+        const features = buildEtaFeatures({
+            ...data,
+            distanceKm,
+            averageSpeedKmh: finalAverageSpeedKmh,
+            trafficLevel
+        });
+
         const modelWeights = activeModel.weights;
+
+        if (
+            !modelWeights ||
+            !Array.isArray(modelWeights.weights) ||
+            modelWeights.weights.length !== FEATURE_NAMES.length ||
+            typeof modelWeights.bias !== "number"
+        ) {
+            throw createHttpError("Active ETA model is invalid", 500);
+        }
 
         const normalizedPrediction = predictNormalized(
             features,
@@ -229,13 +355,13 @@ export const predictEta = async (data) => {
             confidence: activeModel.metrics?.confidence || 0.75,
             features: {
                 distanceKm,
-                averageSpeedKmh: averageSpeedKmh || 25,
-                trafficLevel: trafficLevel || "MEDIUM",
+                averageSpeedKmh: finalAverageSpeedKmh,
+                trafficLevel,
                 pickupHour:
                     data.pickupHour !== undefined
                         ? Number(data.pickupHour)
                         : new Date().getHours(),
-                vehicleType: data.vehicleType || "MOTORBIKE",
+                vehicleType: normalizeVehicleType(data.vehicleType || "MOTORBIKE"),
                 driverRating: data.driverRating || 5,
                 driverTotalDeliveries: data.driverTotalDeliveries || 0
             },
@@ -244,16 +370,14 @@ export const predictEta = async (data) => {
         };
     }
 
-    await prisma.aiEtaLog.create({
-        data: {
-            orderId: orderId || null,
-            distanceKm,
-            averageSpeedKmh: averageSpeedKmh || 25,
-            trafficLevel: trafficLevel || "MEDIUM",
-            estimatedMinutes: output.estimatedMinutes,
-            input: data,
-            output
-        }
+    await aiRepository.createEtaLog({
+        orderId: orderId || null,
+        distanceKm,
+        averageSpeedKmh: finalAverageSpeedKmh,
+        trafficLevel,
+        estimatedMinutes: output.estimatedMinutes,
+        input: data,
+        output
     });
 
     return output;
@@ -272,27 +396,32 @@ export const detectAnomaly = async (data) => {
     let anomalyScore = 0;
     const reasons = [];
 
-    if (distanceKm && distanceKm > 50) {
+    if (distanceKm && Number(distanceKm) > 50) {
         anomalyScore += 30;
         reasons.push("Distance is unusually long");
     }
 
-    if (shippingFee && distanceKm && shippingFee / distanceKm > 20000) {
+    if (
+        shippingFee &&
+        distanceKm &&
+        Number(distanceKm) > 0 &&
+        Number(shippingFee) / Number(distanceKm) > 20000
+    ) {
         anomalyScore += 25;
         reasons.push("Shipping fee per km is unusually high");
     }
 
-    if (codAmount && codAmount > 5000000) {
+    if (codAmount && Number(codAmount) > 5000000) {
         anomalyScore += 25;
         reasons.push("COD amount is unusually high");
     }
 
-    if (etaMinutes && etaMinutes > 180) {
+    if (etaMinutes && Number(etaMinutes) > 180) {
         anomalyScore += 20;
         reasons.push("ETA is unusually long");
     }
 
-    if (driverDistanceKm && driverDistanceKm > 15) {
+    if (driverDistanceKm && Number(driverDistanceKm) > 15) {
         anomalyScore += 20;
         reasons.push("Assigned driver is too far from pickup location");
     }
@@ -306,66 +435,40 @@ export const detectAnomaly = async (data) => {
         reasons
     };
 
-    await prisma.aiAnomalyLog.create({
-        data: {
-            orderId: orderId || null,
-            anomalyScore,
-            isAnomaly,
-            reasons,
-            input: data,
-            output
-        }
+    await aiRepository.createAnomalyLog({
+        orderId: orderId || null,
+        anomalyScore,
+        isAnomaly,
+        reasons,
+        input: data,
+        output
     });
 
     return output;
 };
 
-const getPaginatedLogs = async (model, query) => {
-    const page = Number(query.page) > 0 ? Number(query.page) : 1;
-    const limit = Number(query.limit) > 0 ? Number(query.limit) : 10;
-    const skip = (page - 1) * limit;
-
-    const where = {};
-
-    if (query.orderId) {
-        where.orderId = query.orderId;
-    }
-
-    const [items, total] = await Promise.all([
-        model.findMany({
-            where,
-            orderBy: {
-                createdAt: "desc"
-            },
-            skip,
-            take: limit
-        }),
-        model.count({
-            where
-        })
-    ]);
-
-    return {
-        items,
-        pagination: {
-            page,
-            limit,
-            total,
-            totalPages: Math.ceil(total / limit)
-        }
-    };
-};
-
 export const getRecommendationLogs = async (query) => {
-    return getPaginatedLogs(prisma.aiDriverRecommendationLog, query);
+    return getPaginatedResult({
+        query,
+        findItems: aiRepository.findRecommendationLogs,
+        countItems: aiRepository.countRecommendationLogs
+    });
 };
 
 export const getEtaLogs = async (query) => {
-    return getPaginatedLogs(prisma.aiEtaLog, query);
+    return getPaginatedResult({
+        query,
+        findItems: aiRepository.findEtaLogs,
+        countItems: aiRepository.countEtaLogs
+    });
 };
 
 export const getAnomalyLogs = async (query) => {
-    return getPaginatedLogs(prisma.aiAnomalyLog, query);
+    return getPaginatedResult({
+        query,
+        findItems: aiRepository.findAnomalyLogs,
+        countItems: aiRepository.countAnomalyLogs
+    });
 };
 
 export const calculateRiskScore = async (data) => {
@@ -381,27 +484,32 @@ export const calculateRiskScore = async (data) => {
     let riskScore = 0;
     const factors = [];
 
-    if (distanceKm && distanceKm > 30) {
+    if (distanceKm && Number(distanceKm) > 30) {
         riskScore += 20;
         factors.push("Long delivery distance");
     }
 
-    if (shippingFee && distanceKm && shippingFee / distanceKm > 15000) {
+    if (
+        shippingFee &&
+        distanceKm &&
+        Number(distanceKm) > 0 &&
+        Number(shippingFee) / Number(distanceKm) > 15000
+    ) {
         riskScore += 20;
         factors.push("High shipping fee per kilometer");
     }
 
-    if (codAmount && codAmount > 3000000) {
+    if (codAmount && Number(codAmount) > 3000000) {
         riskScore += 25;
         factors.push("High COD amount");
     }
 
-    if (etaMinutes && etaMinutes > 120) {
+    if (etaMinutes && Number(etaMinutes) > 120) {
         riskScore += 20;
         factors.push("Long estimated delivery time");
     }
 
-    if (driverDistanceKm && driverDistanceKm > 10) {
+    if (driverDistanceKm && Number(driverDistanceKm) > 10) {
         riskScore += 15;
         factors.push("Driver is far from pickup location");
     }
@@ -430,15 +538,13 @@ export const calculateRiskScore = async (data) => {
         aiAnalysis
     };
 
-    await prisma.aiAnomalyLog.create({
-        data: {
-            orderId: orderId || null,
-            anomalyScore: riskScore,
-            isAnomaly: riskScore >= 70,
-            reasons: factors,
-            input: data,
-            output
-        }
+    await aiRepository.createAnomalyLog({
+        orderId: orderId || null,
+        anomalyScore: riskScore,
+        isAnomaly: riskScore >= 70,
+        reasons: factors,
+        input: data,
+        output
     });
 
     return output;
@@ -447,41 +553,54 @@ export const calculateRiskScore = async (data) => {
 export const createEtaTrainingSample = async (data) => {
     const {
         orderId,
-        distanceKm,
         averageSpeedKmh,
-        trafficLevel,
         pickupHour,
-        vehicleType,
         driverRating,
-        driverTotalDeliveries,
-        actualMinutes
+        driverTotalDeliveries
     } = data;
 
-    if (distanceKm === undefined || actualMinutes === undefined) {
-        throw new Error("distanceKm and actualMinutes are required");
+    const distanceKm = assertPositiveNumber(data.distanceKm, "distanceKm");
+    const actualMinutes = assertPositiveNumber(data.actualMinutes, "actualMinutes");
+
+    const trafficLevel = normalizeTrafficLevel(data.trafficLevel || "MEDIUM");
+    const vehicleType = normalizeVehicleType(data.vehicleType || "MOTORBIKE");
+
+    const finalAverageSpeedKmh = assertPositiveNumber(
+        averageSpeedKmh || 25,
+        "averageSpeedKmh"
+    );
+
+    const finalPickupHour =
+        pickupHour !== undefined ? Number(pickupHour) : new Date().getHours();
+
+    if (
+        Number.isNaN(finalPickupHour) ||
+        finalPickupHour < 0 ||
+        finalPickupHour > 23
+    ) {
+        throw createHttpError("pickupHour must be between 0 and 23", 400);
     }
 
-    return prisma.aiEtaTrainingSample.create({
-        data: {
-            orderId: orderId || null,
-            distanceKm,
-            averageSpeedKmh: averageSpeedKmh || 25,
-            trafficLevel: trafficLevel || "MEDIUM",
-            pickupHour:
-                pickupHour !== undefined ? Number(pickupHour) : new Date().getHours(),
-            vehicleType: vehicleType || "MOTORBIKE",
-            driverRating: driverRating || 5,
-            driverTotalDeliveries: driverTotalDeliveries || 0,
-            actualMinutes
-        }
+    return aiRepository.createEtaTrainingSample({
+        orderId: orderId || null,
+        distanceKm,
+        averageSpeedKmh: finalAverageSpeedKmh,
+        trafficLevel,
+        pickupHour: finalPickupHour,
+        vehicleType,
+        driverRating: driverRating || 5,
+        driverTotalDeliveries: driverTotalDeliveries || 0,
+        actualMinutes
     });
 };
 
 export const seedEtaTrainingSamples = async ({ count = 50 } = {}) => {
+    const finalCount = Math.min(Math.max(Number(count) || 50, 1), 1000);
+
     const trafficLevels = ["LOW", "MEDIUM", "HIGH"];
     const vehicleTypes = ["MOTORBIKE", "CAR", "VAN"];
 
-    const samples = Array.from({ length: Number(count) || 50 }).map(() => {
+    const samples = Array.from({ length: finalCount }).map(() => {
         const distanceKm = Number((Math.random() * 25 + 1).toFixed(2));
         const averageSpeedKmh = Number((Math.random() * 25 + 15).toFixed(2));
         const trafficLevel =
@@ -499,7 +618,8 @@ export const seedEtaTrainingSamples = async ({ count = 50 } = {}) => {
         }[trafficLevel];
 
         const peakPenalty = isPeakHour(pickupHour) ? 6 : 0;
-        const vehiclePenalty = vehicleType === "VAN" ? 5 : vehicleType === "CAR" ? 3 : 0;
+        const vehiclePenalty =
+            vehicleType === "VAN" ? 5 : vehicleType === "CAR" ? 3 : 0;
         const randomNoise = Math.floor(Math.random() * 8);
 
         const actualMinutes = Math.max(
@@ -524,9 +644,7 @@ export const seedEtaTrainingSamples = async ({ count = 50 } = {}) => {
         };
     });
 
-    await prisma.aiEtaTrainingSample.createMany({
-        data: samples
-    });
+    await aiRepository.createManyEtaTrainingSamples(samples);
 
     return {
         message: "ETA training samples generated successfully",
@@ -535,14 +653,10 @@ export const seedEtaTrainingSamples = async ({ count = 50 } = {}) => {
 };
 
 export const trainEtaModel = async () => {
-    const samples = await prisma.aiEtaTrainingSample.findMany({
-        orderBy: {
-            createdAt: "asc"
-        }
-    });
+    const samples = await aiRepository.findEtaTrainingSamples();
 
     if (samples.length < 10) {
-        throw new Error("At least 10 training samples are required");
+        throw createHttpError("At least 10 training samples are required", 400);
     }
 
     let weights = Array(FEATURE_NAMES.length).fill(0);
@@ -593,40 +707,28 @@ export const trainEtaModel = async () => {
 
     const confidence = Number(clamp(1 - mae / 60, 0.3, 0.95).toFixed(2));
 
-    await prisma.aiModel.updateMany({
-        where: {
-            modelName: ETA_MODEL_NAME,
-            isActive: true
-        },
-        data: {
-            isActive: false
-        }
-    });
+    await aiRepository.deactivateActiveEtaModels(ETA_MODEL_NAME);
 
     const modelVersion = `eta-linear-${Date.now()}`;
 
-    const model = await prisma.aiModel.create({
-        data: {
-            modelName: ETA_MODEL_NAME,
-            modelVersion,
-            modelType: ETA_MODEL_TYPE,
-            weights: {
-                bias,
-                weights,
-                featureNames: FEATURE_NAMES,
-                targetNormalization: {
-                    maxMinutes: 180
-                }
-            },
-            metrics: {
-                trainingSamples: samples.length,
-                maeMinutes: Number(mae.toFixed(2)),
-                confidence,
-                epochs,
-                learningRate
-            },
-            isActive: true,
-            trainedAt: new Date()
+    const model = await aiRepository.createEtaModel({
+        modelName: ETA_MODEL_NAME,
+        modelVersion,
+        modelType: ETA_MODEL_TYPE,
+        weights: {
+            bias,
+            weights,
+            featureNames: FEATURE_NAMES,
+            targetNormalization: {
+                maxMinutes: 180
+            }
+        },
+        metrics: {
+            trainingSamples: samples.length,
+            maeMinutes: Number(mae.toFixed(2)),
+            confidence,
+            epochs,
+            learningRate
         }
     });
 
@@ -637,18 +739,10 @@ export const trainEtaModel = async () => {
 };
 
 export const getActiveEtaModel = async () => {
-    const model = await prisma.aiModel.findFirst({
-        where: {
-            modelName: ETA_MODEL_NAME,
-            isActive: true
-        },
-        orderBy: {
-            trainedAt: "desc"
-        }
-    });
+    const model = await aiRepository.findActiveEtaModel(ETA_MODEL_NAME);
 
     if (!model) {
-        throw new Error("No active ETA model found");
+        throw createHttpError("No active ETA model found", 404);
     }
 
     return model;
