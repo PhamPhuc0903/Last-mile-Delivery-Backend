@@ -53,6 +53,8 @@ services:
     build: ./order-service
     env_file:
       - ./order-service/.env
+    environment:
+      DATABASE_URL: postgresql://delivery:delivery@postgres:5432/delivery_db?schema=orders
     container_name: order-service
     ports:
       - "3002:3000"

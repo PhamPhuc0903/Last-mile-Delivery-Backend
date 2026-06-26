@@ -1,5 +1,15 @@
 import bcrypt from "bcryptjs";
-import prisma from "../config/prisma.js";
+import * as adminRepository from "../repositories/admin.repository.js";
+
+const USER_ROLES = ["ADMIN", "CUSTOMER", "DRIVER"];
+const USER_STATUSES = ["ACTIVE", "BLOCKED", "DELETED"];
+const DRIVER_STATUSES = ["OFFLINE", "ONLINE", "BUSY", "SUSPENDED"];
+
+const createHttpError = (message, statusCode = 400) => {
+    const error = new Error(message);
+    error.statusCode = statusCode;
+    return error;
+};
 
 const normalize = (data) => {
     return JSON.parse(
@@ -13,7 +23,7 @@ const normalize = (data) => {
     );
 };
 
-const getPagination = (query) => {
+const getPagination = (query = {}) => {
     const page = Math.max(Number(query.page || 1), 1);
     const limit = Math.min(Math.max(Number(query.limit || 10), 1), 100);
     const skip = (page - 1) * limit;
@@ -23,6 +33,53 @@ const getPagination = (query) => {
         limit,
         skip
     };
+};
+
+const assertValidUserRole = (role) => {
+    if (role && !USER_ROLES.includes(role)) {
+        throw createHttpError("Invalid user role", 400);
+    }
+};
+
+const assertValidUserStatus = (status) => {
+    if (status && !USER_STATUSES.includes(status)) {
+        throw createHttpError("Invalid user status", 400);
+    }
+};
+
+const assertValidDriverStatus = (status) => {
+    if (!status || !DRIVER_STATUSES.includes(status)) {
+        throw createHttpError(
+            "status must be one of: OFFLINE, ONLINE, BUSY, SUSPENDED",
+            400
+        );
+    }
+};
+
+const assertUniqueUserContact = async ({ phone, email }, excludedUserId = null) => {
+    const existingUser = await adminRepository.findUserByContact({
+        phone,
+        email,
+        excludedUserId
+    });
+
+    if (existingUser) {
+        throw createHttpError("Phone or email already exists", 409);
+    }
+};
+
+const buildPaginatedRawResult = ({ items, totalRows, page, limit }) => {
+    const total = totalRows[0]?.count || 0;
+
+    return normalize({
+        items,
+        pagination: {
+            page,
+            limit,
+            total,
+            totalPages: Math.ceil(total / limit)
+        }
+    });
 };
 
 export const getDashboardStats = async () => {
@@ -37,63 +94,26 @@ export const getDashboardStats = async () => {
         todayOrders,
         totalDriverProfiles,
         totalPayments,
-        paidRevenue
+        paidRevenue,
+        orderStatusStats,
+        driverStatusStats,
+        paymentStatusStats
     ] = await Promise.all([
-        prisma.user.count(),
-        prisma.user.count({ where: { role: "ADMIN" } }),
-        prisma.user.count({ where: { role: "CUSTOMER" } }),
-        prisma.user.count({ where: { role: "DRIVER" } }),
-        prisma.user.count({ where: { status: "ACTIVE" } }),
-        prisma.user.count({ where: { status: "BLOCKED" } }),
-
-        prisma.$queryRaw`
-      SELECT COUNT(*)::int AS count
-      FROM orders.orders
-    `,
-
-        prisma.$queryRaw`
-      SELECT COUNT(*)::int AS count
-      FROM orders.orders
-      WHERE created_at::date = CURRENT_DATE
-    `,
-
-        prisma.$queryRaw`
-      SELECT COUNT(*)::int AS count
-      FROM drivers.drivers
-    `,
-
-        prisma.$queryRaw`
-      SELECT COUNT(*)::int AS count
-      FROM payments.payment_transactions
-    `,
-
-        prisma.$queryRaw`
-      SELECT COALESCE(SUM(amount), 0)::text AS total
-      FROM payments.payment_transactions
-      WHERE payment_status = 'PAID'
-    `
+        adminRepository.countUsers(),
+        adminRepository.countUsers({ role: "ADMIN" }),
+        adminRepository.countUsers({ role: "CUSTOMER" }),
+        adminRepository.countUsers({ role: "DRIVER" }),
+        adminRepository.countUsers({ status: "ACTIVE" }),
+        adminRepository.countUsers({ status: "BLOCKED" }),
+        adminRepository.getDashboardOrderCount(),
+        adminRepository.getDashboardTodayOrderCount(),
+        adminRepository.getDashboardDriverProfileCount(),
+        adminRepository.getDashboardPaymentCount(),
+        adminRepository.getDashboardPaidRevenue(),
+        adminRepository.getOrderStatusStats(),
+        adminRepository.getDriverStatusStats(),
+        adminRepository.getPaymentStatusStats()
     ]);
-
-    const orderStatusStats = await prisma.$queryRaw`
-    SELECT status::text AS status, COUNT(*)::int AS count
-    FROM orders.orders
-    GROUP BY status
-    ORDER BY status
-  `;
-
-    const driverStatusStats = await prisma.$queryRaw`
-    SELECT status::text AS status, COUNT(*)::int AS count
-    FROM drivers.drivers
-    GROUP BY status
-    ORDER BY status
-  `;
-
-    const paymentStatusStats = await prisma.$queryRaw`
-    SELECT payment_status::text AS status, COUNT(*)::int AS count
-    FROM payments.payment_transactions
-    GROUP BY payment_status
-    ORDER BY payment_status
-  `;
 
     return normalize({
         users: {
@@ -121,8 +141,11 @@ export const getDashboardStats = async () => {
     });
 };
 
-export const getUsers = async (query) => {
+export const getUsers = async (query = {}) => {
     const { page, limit, skip } = getPagination(query);
+
+    assertValidUserRole(query.role);
+    assertValidUserStatus(query.status);
 
     const where = {
         status: query.status || undefined,
@@ -152,25 +175,12 @@ export const getUsers = async (query) => {
     };
 
     const [items, total] = await Promise.all([
-        prisma.user.findMany({
+        adminRepository.findUsers({
             where,
             skip,
-            take: limit,
-            orderBy: {
-                createdAt: "desc"
-            },
-            select: {
-                id: true,
-                fullName: true,
-                phone: true,
-                email: true,
-                role: true,
-                status: true,
-                createdAt: true,
-                updatedAt: true
-            }
+            limit
         }),
-        prisma.user.count({ where })
+        adminRepository.countUsers(where)
     ]);
 
     return {
@@ -185,24 +195,10 @@ export const getUsers = async (query) => {
 };
 
 export const getUserById = async (id) => {
-    const user = await prisma.user.findUnique({
-        where: {
-            id
-        },
-        select: {
-            id: true,
-            fullName: true,
-            phone: true,
-            email: true,
-            role: true,
-            status: true,
-            createdAt: true,
-            updatedAt: true
-        }
-    });
+    const user = await adminRepository.findUserById(id);
 
     if (!user) {
-        throw new Error("User not found");
+        throw createHttpError("User not found", 404);
     }
 
     return user;
@@ -212,34 +208,44 @@ export const createUser = async (data) => {
     const { fullName, phone, email, password, role } = data;
 
     if (!fullName || !phone || !password || !role) {
-        throw new Error("fullName, phone, password and role are required");
+        throw createHttpError("fullName, phone, password and role are required", 400);
     }
+
+    if (password.length < 6) {
+        throw createHttpError("Password must be at least 6 characters", 400);
+    }
+
+    assertValidUserRole(role);
+
+    await assertUniqueUserContact({
+        phone,
+        email
+    });
 
     const passwordHash = await bcrypt.hash(password, 10);
 
-    return prisma.user.create({
-        data: {
-            fullName,
-            phone,
-            email: email || null,
-            passwordHash,
-            role,
-            status: "ACTIVE"
-        },
-        select: {
-            id: true,
-            fullName: true,
-            phone: true,
-            email: true,
-            role: true,
-            status: true,
-            createdAt: true
-        }
+    return adminRepository.createUser({
+        fullName,
+        phone,
+        email,
+        passwordHash,
+        role
     });
 };
 
 export const updateUser = async (id, data) => {
     await getUserById(id);
+
+    assertValidUserRole(data.role);
+    assertValidUserStatus(data.status);
+
+    await assertUniqueUserContact(
+        {
+            phone: data.phone,
+            email: data.email
+        },
+        id
+    );
 
     const allowedData = {
         fullName: data.fullName,
@@ -256,61 +262,40 @@ export const updateUser = async (id, data) => {
         }
     });
 
-    return prisma.user.update({
-        where: {
-            id
-        },
-        data: allowedData,
-        select: {
-            id: true,
-            fullName: true,
-            phone: true,
-            email: true,
-            role: true,
-            status: true,
-            updatedAt: true
-        }
+    return adminRepository.updateUser({
+        id,
+        data: allowedData
     });
 };
 
 export const blockUser = async (id) => {
-    await getUserById(id);
+    const user = await getUserById(id);
 
-    return prisma.user.update({
-        where: {
-            id
-        },
+    if (user.status === "DELETED") {
+        throw createHttpError("Deleted user cannot be blocked", 400);
+    }
+
+    return adminRepository.updateUser({
+        id,
         data: {
             status: "BLOCKED",
             updatedAt: new Date()
-        },
-        select: {
-            id: true,
-            fullName: true,
-            phone: true,
-            role: true,
-            status: true
         }
     });
 };
 
 export const unblockUser = async (id) => {
-    await getUserById(id);
+    const user = await getUserById(id);
 
-    return prisma.user.update({
-        where: {
-            id
-        },
+    if (user.status === "DELETED") {
+        throw createHttpError("Deleted user cannot be unblocked", 400);
+    }
+
+    return adminRepository.updateUser({
+        id,
         data: {
             status: "ACTIVE",
             updatedAt: new Date()
-        },
-        select: {
-            id: true,
-            fullName: true,
-            phone: true,
-            role: true,
-            status: true
         }
     });
 };
@@ -318,179 +303,49 @@ export const unblockUser = async (id) => {
 export const deleteUser = async (id) => {
     await getUserById(id);
 
-    return prisma.user.update({
-        where: {
-            id
-        },
+    return adminRepository.updateUser({
+        id,
         data: {
             status: "DELETED",
             updatedAt: new Date()
-        },
-        select: {
-            id: true,
-            fullName: true,
-            phone: true,
-            role: true,
-            status: true
         }
     });
 };
 
-export const getOrders = async (query) => {
+export const getOrders = async (query = {}) => {
     const { page, limit, skip } = getPagination(query);
 
-    const items = await prisma.$queryRawUnsafe(
-        `
-    SELECT *
-    FROM orders.orders
-    ORDER BY created_at DESC
-    LIMIT $1 OFFSET $2
-    `,
-        limit,
-        skip
-    );
-
-    const total = await prisma.$queryRaw`
-    SELECT COUNT(*)::int AS count
-    FROM orders.orders
-  `;
-
-    return normalize({
-        items,
-        pagination: {
-            page,
+    const [items, totalRows] = await Promise.all([
+        adminRepository.findOrders({
             limit,
-            total: total[0]?.count || 0,
-            totalPages: Math.ceil((total[0]?.count || 0) / limit)
-        }
-    });
-};
+            skip
+        }),
+        adminRepository.countOrders()
+    ]);
 
-export const getDrivers = async (query) => {
-    const { page, limit, skip } = getPagination(query);
-
-    const items = await prisma.$queryRawUnsafe(
-        `
-    SELECT *
-    FROM drivers.drivers
-    ORDER BY created_at DESC
-    LIMIT $1 OFFSET $2
-    `,
-        limit,
-        skip
-    );
-
-    const total = await prisma.$queryRaw`
-    SELECT COUNT(*)::int AS count
-    FROM drivers.drivers
-  `;
-
-    return normalize({
+    return buildPaginatedRawResult({
         items,
-        pagination: {
-            page,
-            limit,
-            total: total[0]?.count || 0,
-            totalPages: Math.ceil((total[0]?.count || 0) / limit)
-        }
-    });
-};
-
-export const getPayments = async (query) => {
-    const { page, limit, skip } = getPagination(query);
-
-    const items = await prisma.$queryRawUnsafe(
-        `
-    SELECT *
-    FROM payments.payment_transactions
-    ORDER BY created_at DESC
-    LIMIT $1 OFFSET $2
-    `,
-        limit,
-        skip
-    );
-
-    const total = await prisma.$queryRaw`
-    SELECT COUNT(*)::int AS count
-    FROM payments.payment_transactions
-  `;
-
-    return normalize({
-        items,
-        pagination: {
-            page,
-            limit,
-            total: total[0]?.count || 0,
-            totalPages: Math.ceil((total[0]?.count || 0) / limit)
-        }
+        totalRows,
+        page,
+        limit
     });
 };
 
 export const getOrderById = async (id) => {
-    const orders = await prisma.$queryRawUnsafe(
-        `
-    SELECT *
-    FROM orders.orders
-    WHERE id = $1::uuid
-    LIMIT 1
-    `,
-        id
-    );
+    const orders = await adminRepository.findOrderById(id);
 
     if (!orders.length) {
-        throw new Error("Order not found");
+        throw createHttpError("Order not found", 404);
     }
 
-    const items = await prisma.$queryRawUnsafe(
-        `
-    SELECT *
-    FROM orders.order_items
-    WHERE order_id = $1::uuid
-    ORDER BY created_at ASC
-    `,
-        id
-    );
-
-    const timeline = await prisma.$queryRawUnsafe(
-        `
-    SELECT *
-    FROM orders.order_status_logs
-    WHERE order_id = $1::uuid
-    ORDER BY created_at ASC
-    `,
-        id
-    );
-
-    const payments = await prisma.$queryRawUnsafe(
-        `
-    SELECT *
-    FROM payments.payment_transactions
-    WHERE order_id = $1::uuid
-    ORDER BY created_at DESC
-    `,
-        id
-    );
-
-    const trackingLogs = await prisma.$queryRawUnsafe(
-        `
-    SELECT *
-    FROM tracking.tracking_logs
-    WHERE order_id = $1::uuid
-    ORDER BY created_at DESC
-    LIMIT 20
-    `,
-        id
-    );
-
-    const assignments = await prisma.$queryRawUnsafe(
-        `
-    SELECT *
-    FROM dispatch.delivery_assignments
-    WHERE order_id = $1::uuid
-    ORDER BY created_at DESC
-    `,
-        id
-    );
+    const [items, timeline, payments, trackingLogs, assignments] =
+        await Promise.all([
+            adminRepository.findOrderItems(id),
+            adminRepository.findOrderTimeline(id),
+            adminRepository.findOrderPayments(id),
+            adminRepository.findOrderTrackingLogs(id),
+            adminRepository.findOrderAssignments(id)
+        ]);
 
     return normalize({
         order: orders[0],
@@ -502,42 +357,36 @@ export const getOrderById = async (id) => {
     });
 };
 
+export const getDrivers = async (query = {}) => {
+    const { page, limit, skip } = getPagination(query);
+
+    const [items, totalRows] = await Promise.all([
+        adminRepository.findDrivers({
+            limit,
+            skip
+        }),
+        adminRepository.countDrivers()
+    ]);
+
+    return buildPaginatedRawResult({
+        items,
+        totalRows,
+        page,
+        limit
+    });
+};
+
 export const getDriverById = async (id) => {
-    const drivers = await prisma.$queryRawUnsafe(
-        `
-    SELECT *
-    FROM drivers.drivers
-    WHERE id = $1::uuid
-    LIMIT 1
-    `,
-        id
-    );
+    const drivers = await adminRepository.findDriverById(id);
 
     if (!drivers.length) {
-        throw new Error("Driver not found");
+        throw createHttpError("Driver not found", 404);
     }
 
-    const locations = await prisma.$queryRawUnsafe(
-        `
-    SELECT *
-    FROM drivers.driver_locations
-    WHERE driver_id = $1::uuid
-    ORDER BY updated_at DESC
-    LIMIT 10
-    `,
-        id
-    );
-
-    const assignments = await prisma.$queryRawUnsafe(
-        `
-    SELECT *
-    FROM dispatch.delivery_assignments
-    WHERE driver_id = $1::uuid
-    ORDER BY created_at DESC
-    LIMIT 20
-    `,
-        id
-    );
+    const [locations, assignments] = await Promise.all([
+        adminRepository.findDriverLocations(id),
+        adminRepository.findDriverAssignments(id)
+    ]);
 
     return normalize({
         driver: drivers[0],
@@ -549,90 +398,74 @@ export const getDriverById = async (id) => {
 export const updateDriverStatus = async (id, data) => {
     const { status } = data;
 
-    const allowedStatuses = ["OFFLINE", "ONLINE", "BUSY", "SUSPENDED"];
+    assertValidDriverStatus(status);
 
-    if (!status || !allowedStatuses.includes(status)) {
-        throw new Error(
-            "status must be one of: OFFLINE, ONLINE, BUSY, SUSPENDED"
-        );
-    }
-
-    const drivers = await prisma.$queryRawUnsafe(
-        `
-    UPDATE drivers.drivers
-    SET status = $2::drivers."DriverStatus",
-        updated_at = CURRENT_TIMESTAMP
-    WHERE id = $1::uuid
-    RETURNING *
-    `,
+    const drivers = await adminRepository.updateDriverStatus({
         id,
         status
-    );
+    });
 
     if (!drivers.length) {
-        throw new Error("Driver not found");
+        throw createHttpError("Driver not found", 404);
     }
 
     return normalize(drivers[0]);
 };
 
-export const getAiRecommendationLogs = async (query) => {
+export const getPayments = async (query = {}) => {
     const { page, limit, skip } = getPagination(query);
 
-    const items = await prisma.$queryRawUnsafe(
-        `
-    SELECT *
-    FROM ai.ai_driver_recommendation_logs
-    ORDER BY created_at DESC
-    LIMIT $1 OFFSET $2
-    `,
-        limit,
-        skip
-    );
-
-    const total = await prisma.$queryRaw`
-    SELECT COUNT(*)::int AS count
-    FROM ai.ai_driver_recommendation_logs
-  `;
-
-    return normalize({
-        items,
-        pagination: {
-            page,
+    const [items, totalRows] = await Promise.all([
+        adminRepository.findPayments({
             limit,
-            total: total[0]?.count || 0,
-            totalPages: Math.ceil((total[0]?.count || 0) / limit)
-        }
+            skip
+        }),
+        adminRepository.countPayments()
+    ]);
+
+    return buildPaginatedRawResult({
+        items,
+        totalRows,
+        page,
+        limit
     });
 };
 
-export const getAiAnomalyLogs = async (query) => {
+export const getAiRecommendationLogs = async (query = {}) => {
     const { page, limit, skip } = getPagination(query);
 
-    const items = await prisma.$queryRawUnsafe(
-        `
-    SELECT *
-    FROM ai.ai_anomaly_logs
-    ORDER BY created_at DESC
-    LIMIT $1 OFFSET $2
-    `,
-        limit,
-        skip
-    );
-
-    const total = await prisma.$queryRaw`
-    SELECT COUNT(*)::int AS count
-    FROM ai.ai_anomaly_logs
-  `;
-
-    return normalize({
-        items,
-        pagination: {
-            page,
+    const [items, totalRows] = await Promise.all([
+        adminRepository.findAiRecommendationLogs({
             limit,
-            total: total[0]?.count || 0,
-            totalPages: Math.ceil((total[0]?.count || 0) / limit)
-        }
+            skip
+        }),
+        adminRepository.countAiRecommendationLogs()
+    ]);
+
+    return buildPaginatedRawResult({
+        items,
+        totalRows,
+        page,
+        limit
+    });
+};
+
+export const getAiAnomalyLogs = async (query = {}) => {
+    const { page, limit, skip } = getPagination(query);
+
+    const [items, totalRows] = await Promise.all([
+        adminRepository.findAiAnomalyLogs({
+            limit,
+            skip
+        }),
+        adminRepository.countAiAnomalyLogs()
+    ]);
+
+    return buildPaginatedRawResult({
+        items,
+        totalRows,
+        page,
+        limit
     });
 };
 
@@ -709,8 +542,7 @@ export const getSystemHealth = async () => {
         },
         {
             name: "notification-service",
-            url:
-                process.env.NOTIFICATION_SERVICE_URL || "http://localhost:3006"
+            url: process.env.NOTIFICATION_SERVICE_URL || "http://localhost:3006"
         },
         {
             name: "ai-service",
@@ -723,9 +555,7 @@ export const getSystemHealth = async () => {
     ];
 
     const results = await Promise.all(
-        services.map((service) =>
-            checkServiceHealth(service.name, service.url)
-        )
+        services.map((service) => checkServiceHealth(service.name, service.url))
     );
 
     const up = results.filter((item) => item.status === "UP").length;
