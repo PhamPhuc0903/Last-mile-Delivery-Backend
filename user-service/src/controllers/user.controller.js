@@ -11,7 +11,7 @@ export const getMe = async (req, res) => {
     } catch (error) {
         console.error("Get profile error:", error);
 
-        res.status(400).json({
+        res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });
@@ -29,7 +29,7 @@ export const updateMe = async (req, res) => {
     } catch (error) {
         console.error("Update profile error:", error);
 
-        res.status(400).json({
+        res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });
@@ -47,7 +47,7 @@ export const getAddresses = async (req, res) => {
     } catch (error) {
         console.error("Get addresses error:", error);
 
-        res.status(400).json({
+        res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });
@@ -65,7 +65,7 @@ export const createAddress = async (req, res) => {
     } catch (error) {
         console.error("Create address error:", error);
 
-        res.status(400).json({
+        res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });
@@ -86,7 +86,7 @@ export const getAddressById = async (req, res) => {
     } catch (error) {
         console.error("Get address error:", error);
 
-        res.status(404).json({
+        res.status(error.statusCode || 404).json({
             success: false,
             message: error.message
         });
@@ -108,7 +108,7 @@ export const updateAddress = async (req, res) => {
     } catch (error) {
         console.error("Update address error:", error);
 
-        res.status(400).json({
+        res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });
@@ -126,7 +126,7 @@ export const deleteAddress = async (req, res) => {
     } catch (error) {
         console.error("Delete address error:", error);
 
-        res.status(400).json({
+        res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });

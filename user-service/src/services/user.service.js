@@ -1,18 +1,16 @@
-import prisma from "../config/prisma.js";
+import * as userRepository from "../repositories/user.repository.js";
+
+const createHttpError = (message, statusCode = 400) => {
+    const error = new Error(message);
+    error.statusCode = statusCode;
+    return error;
+};
 
 export const getMe = async (userId) => {
-    let profile = await prisma.profile.findUnique({
-        where: {
-            userId
-        }
-    });
+    let profile = await userRepository.findProfileByUserId(userId);
 
     if (!profile) {
-        profile = await prisma.profile.create({
-            data: {
-                userId
-            }
-        });
+        profile = await userRepository.createProfile(userId);
     }
 
     return profile;
@@ -21,33 +19,15 @@ export const getMe = async (userId) => {
 export const updateMe = async (userId, data) => {
     const { fullName, avatarUrl } = data;
 
-    const profile = await prisma.profile.upsert({
-        where: {
-            userId
-        },
-        update: {
-            fullName,
-            avatarUrl
-        },
-        create: {
-            userId,
-            fullName,
-            avatarUrl
-        }
+    return userRepository.upsertProfile({
+        userId,
+        fullName,
+        avatarUrl
     });
-
-    return profile;
 };
 
 export const getAddresses = async (userId) => {
-    return prisma.address.findMany({
-        where: {
-            userId
-        },
-        orderBy: {
-            createdAt: "desc"
-        }
-    });
+    return userRepository.findAddressesByUserId(userId);
 };
 
 export const createAddress = async (userId, data) => {
@@ -65,104 +45,80 @@ export const createAddress = async (userId, data) => {
     } = data;
 
     if (!addressLine) {
-        throw new Error("addressLine is required");
+        throw createHttpError("addressLine is required", 400);
+    }
+
+    if (!receiverName) {
+        throw createHttpError("receiverName is required", 400);
+    }
+
+    if (!receiverPhone) {
+        throw createHttpError("receiverPhone is required", 400);
     }
 
     if (isDefault) {
-        await prisma.address.updateMany({
-            where: {
-                userId
-            },
-            data: {
-                isDefault: false
-            }
-        });
+        await userRepository.clearDefaultAddresses(userId);
     }
 
-    const address = await prisma.address.create({
-        data: {
-            userId,
-            label,
-            receiverName,
-            receiverPhone,
-            addressLine,
-            ward,
-            district,
-            city,
-            lat,
-            lng,
-            isDefault: Boolean(isDefault)
-        }
+    return userRepository.createAddress({
+        userId,
+        label,
+        receiverName,
+        receiverPhone,
+        addressLine,
+        ward,
+        district,
+        city,
+        lat,
+        lng,
+        isDefault
     });
-
-    return address;
 };
 
 export const getAddressById = async (userId, addressId) => {
-    const address = await prisma.address.findFirst({
-        where: {
-            id: addressId,
-            userId
-        }
+    const address = await userRepository.findAddressByIdAndUserId({
+        addressId,
+        userId
     });
 
     if (!address) {
-        throw new Error("Address not found");
+        throw createHttpError("Address not found", 404);
     }
 
     return address;
 };
 
 export const updateAddress = async (userId, addressId, data) => {
-    const existingAddress = await prisma.address.findFirst({
-        where: {
-            id: addressId,
-            userId
-        }
+    const existingAddress = await userRepository.findAddressByIdAndUserId({
+        addressId,
+        userId
     });
 
     if (!existingAddress) {
-        throw new Error("Address not found");
+        throw createHttpError("Address not found", 404);
     }
 
     if (data.isDefault === true) {
-        await prisma.address.updateMany({
-            where: {
-                userId
-            },
-            data: {
-                isDefault: false
-            }
-        });
+        await userRepository.clearDefaultAddresses(userId);
     }
 
-    const address = await prisma.address.update({
-        where: {
-            id: addressId
-        },
+    return userRepository.updateAddress({
+        addressId,
         data
     });
-
-    return address;
 };
 
 export const deleteAddress = async (userId, addressId) => {
-    const existingAddress = await prisma.address.findFirst({
-        where: {
-            id: addressId,
-            userId
-        }
+    const existingAddress = await userRepository.findAddressByIdAndUserId({
+        addressId,
+        userId
     });
 
     if (!existingAddress) {
-        throw new Error("Address not found");
+        throw createHttpError("Address not found", 404);
     }
 
-    await prisma.address.delete({
-        where: {
-            id: addressId
-        }
-    });
+    await userRepository.deleteAddress(addressId);
 
     return {
         message: "Address deleted successfully"
