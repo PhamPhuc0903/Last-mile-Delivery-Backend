@@ -11,7 +11,7 @@ export const createOrder = async (req, res) => {
     } catch (error) {
         console.error("Create order error:", error);
 
-        res.status(400).json({
+        res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });
@@ -29,7 +29,7 @@ export const getMyOrders = async (req, res) => {
     } catch (error) {
         console.error("Get my orders error:", error);
 
-        res.status(400).json({
+        res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });
@@ -47,7 +47,7 @@ export const getOrderById = async (req, res) => {
     } catch (error) {
         console.error("Get order error:", error);
 
-        res.status(404).json({
+        res.status(error.statusCode || 404).json({
             success: false,
             message: error.message
         });
@@ -56,7 +56,11 @@ export const getOrderById = async (req, res) => {
 
 export const cancelOrder = async (req, res) => {
     try {
-        const order = await orderService.cancelOrder(req.user.id, req.params.id);
+        const order = await orderService.cancelOrder(
+            req.user,
+            req.params.id,
+            req.body || {}
+        );
 
         res.status(200).json({
             success: true,
@@ -65,7 +69,7 @@ export const cancelOrder = async (req, res) => {
     } catch (error) {
         console.error("Cancel order error:", error);
 
-        res.status(400).json({
+        res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });
@@ -75,7 +79,7 @@ export const cancelOrder = async (req, res) => {
 export const updateOrderStatus = async (req, res) => {
     try {
         const order = await orderService.updateOrderStatus(
-            req.user.id,
+            req.user,
             req.params.id,
             req.body
         );
@@ -87,7 +91,7 @@ export const updateOrderStatus = async (req, res) => {
     } catch (error) {
         console.error("Update order status error:", error);
 
-        res.status(400).json({
+        res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });
@@ -105,7 +109,7 @@ export const getOrders = async (req, res) => {
     } catch (error) {
         console.error("Get orders error:", error);
 
-        res.status(400).json({
+        res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });
@@ -127,7 +131,7 @@ export const updateOrder = async (req, res) => {
     } catch (error) {
         console.error("Update order error:", error);
 
-        res.status(400).json({
+        res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });
@@ -148,7 +152,7 @@ export const getOrderTimeline = async (req, res) => {
     } catch (error) {
         console.error("Get order timeline error:", error);
 
-        res.status(404).json({
+        res.status(error.statusCode || 404).json({
             success: false,
             message: error.message
         });
@@ -166,7 +170,7 @@ export const getTodayStats = async (req, res) => {
     } catch (error) {
         console.error("Get today stats error:", error);
 
-        res.status(400).json({
+        res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });
@@ -184,7 +188,7 @@ export const getMonthStats = async (req, res) => {
     } catch (error) {
         console.error("Get month stats error:", error);
 
-        res.status(400).json({
+        res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });
@@ -202,7 +206,7 @@ export const getYearStats = async (req, res) => {
     } catch (error) {
         console.error("Get year stats error:", error);
 
-        res.status(400).json({
+        res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });
