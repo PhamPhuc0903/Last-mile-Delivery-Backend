@@ -11,7 +11,7 @@ export const createSession = async (req, res) => {
     } catch (error) {
         console.error("Create chat session error:", error);
 
-        res.status(400).json({
+        res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });
@@ -29,7 +29,7 @@ export const getMySessions = async (req, res) => {
     } catch (error) {
         console.error("Get chat sessions error:", error);
 
-        res.status(400).json({
+        res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });
@@ -50,7 +50,7 @@ export const getSessionById = async (req, res) => {
     } catch (error) {
         console.error("Get chat session error:", error);
 
-        res.status(404).json({
+        res.status(error.statusCode || 404).json({
             success: false,
             message: error.message
         });
@@ -73,7 +73,7 @@ export const sendMessage = async (req, res) => {
     } catch (error) {
         console.error("Send chatbot message error:", error);
 
-        res.status(400).json({
+        res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });
@@ -98,7 +98,7 @@ export const sendMessageWithoutSession = async (req, res) => {
     } catch (error) {
         console.error("Send chatbot message error:", error);
 
-        res.status(400).json({
+        res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });
@@ -119,7 +119,7 @@ export const closeSession = async (req, res) => {
     } catch (error) {
         console.error("Close chat session error:", error);
 
-        res.status(400).json({
+        res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });
@@ -137,7 +137,7 @@ export const getSuggestedQuestions = async (req, res) => {
     } catch (error) {
         console.error("Get chatbot suggestions error:", error);
 
-        res.status(400).json({
+        res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });

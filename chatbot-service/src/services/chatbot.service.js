@@ -1,17 +1,24 @@
-import prisma from "../config/prisma.js";
 import { generateChatbotAnswer } from "./llm.service.js";
+import * as chatbotRepository from "../repositories/chatbot.repository.js";
+
+const createHttpError = (message, statusCode = 400) => {
+    const error = new Error(message);
+    error.statusCode = statusCode;
+    return error;
+};
 
 const getOrderContext = async (orderId, authorizationHeader) => {
     if (!orderId) {
         return null;
     }
 
-    const orderServiceUrl = process.env.ORDER_SERVICE_URL || "http://localhost:3002";
+    const orderServiceUrl =
+        process.env.ORDER_SERVICE_URL || "http://localhost:3002";
 
     try {
         const response = await fetch(`${orderServiceUrl}/orders/${orderId}`, {
             headers: {
-                Authorization: authorizationHeader
+                Authorization: authorizationHeader || ""
             }
         });
 
@@ -27,46 +34,34 @@ const getOrderContext = async (orderId, authorizationHeader) => {
     }
 };
 
-export const createSession = async (userId, data) => {
+const assertSessionOpen = (session) => {
+    if (session.status === "CLOSED") {
+        throw createHttpError("Chat session is closed", 400);
+    }
+};
+
+export const createSession = async (userId, data = {}) => {
     const { orderId, title } = data;
 
-    return prisma.chatSession.create({
-        data: {
-            userId,
-            orderId: orderId || null,
-            title: title || "Chat hỗ trợ đơn hàng"
-        }
+    return chatbotRepository.createSession({
+        userId,
+        orderId,
+        title
     });
 };
 
 export const getMySessions = async (userId) => {
-    return prisma.chatSession.findMany({
-        where: {
-            userId
-        },
-        orderBy: {
-            updatedAt: "desc"
-        }
-    });
+    return chatbotRepository.findSessionsByUserId(userId);
 };
 
 export const getSessionById = async (userId, sessionId) => {
-    const session = await prisma.chatSession.findFirst({
-        where: {
-            id: sessionId,
-            userId
-        },
-        include: {
-            messages: {
-                orderBy: {
-                    createdAt: "asc"
-                }
-            }
-        }
+    const session = await chatbotRepository.findSessionByIdAndUserIdWithMessages({
+        sessionId,
+        userId
     });
 
     if (!session) {
-        throw new Error("Chat session not found");
+        throw createHttpError("Chat session not found", 404);
     }
 
     return session;
@@ -75,118 +70,93 @@ export const getSessionById = async (userId, sessionId) => {
 export const sendMessage = async (
     userId,
     sessionId,
-    { message, orderId },
+    { message, orderId } = {},
     authorizationHeader
 ) => {
-    if (!message) {
-        throw new Error("message is required");
+    if (!message || !String(message).trim()) {
+        throw createHttpError("message is required", 400);
     }
 
     let session;
 
     if (sessionId) {
-        session = await prisma.chatSession.findFirst({
-            where: {
-                id: sessionId,
-                userId
-            }
+        session = await chatbotRepository.findSessionByIdAndUserId({
+            sessionId,
+            userId
         });
 
         if (!session) {
-            throw new Error("Chat session not found");
+            throw createHttpError("Chat session not found", 404);
+        }
+
+        assertSessionOpen(session);
+
+        if (session.orderId && orderId && session.orderId !== orderId) {
+            throw createHttpError(
+                "orderId does not match this chat session",
+                400
+            );
+        }
+
+        if (!session.orderId && orderId) {
+            session = await chatbotRepository.updateSessionOrderId({
+                sessionId: session.id,
+                orderId
+            });
         }
     } else {
-        session = await prisma.chatSession.create({
-            data: {
-                userId,
-                orderId: orderId || null,
-                title: "Chat hỗ trợ đơn hàng"
-            }
+        session = await chatbotRepository.createSession({
+            userId,
+            orderId: orderId || null,
+            title: "Chat hỗ trợ đơn hàng"
         });
     }
 
+    const finalOrderId = session.orderId || orderId || null;
+
     const orderContext = await getOrderContext(
-        orderId || session.orderId,
+        finalOrderId,
         authorizationHeader
     );
 
-    const recentMessages = await prisma.chatMessage.findMany({
-        where: {
-            sessionId: session.id
-        },
-        orderBy: {
-            createdAt: "desc"
-        },
-        take: 6
+    const recentMessages = await chatbotRepository.findRecentMessagesBySessionId(
+        session.id,
+        6
+    );
+
+    const aiResult = await generateChatbotAnswer({
+        question: String(message).trim(),
+        orderContext,
+        history: recentMessages.reverse()
     });
 
-    const result = await prisma.$transaction(async (tx) => {
-        const userMessage = await tx.chatMessage.create({
-            data: {
-                sessionId: session.id,
-                sender: "USER",
-                message
-            }
-        });
-
-        const aiResult = await generateChatbotAnswer({
-            question: message,
-            orderContext,
-            history: recentMessages.reverse()
-        });
-
-        const botMessage = await tx.chatMessage.create({
-            data: {
-                sessionId: session.id,
-                sender: "BOT",
-                message: aiResult.answer,
-                metadata: {
-                    provider: aiResult.provider,
-                    orderId: orderId || session.orderId || null
-                }
-            }
-        });
-
-        await tx.chatSession.update({
-            where: {
-                id: session.id
-            },
-            data: {
-                updatedAt: new Date()
-            }
-        });
-
-        return {
-            sessionId: session.id,
-            userMessage,
-            botMessage
-        };
+    return chatbotRepository.createUserAndBotMessages({
+        sessionId: session.id,
+        userMessageText: String(message).trim(),
+        botMessageText: aiResult.answer,
+        metadata: {
+            provider: aiResult.provider,
+            orderId: finalOrderId,
+            hasOrderContext: Boolean(orderContext)
+        }
     });
-
-    return result;
 };
 
 export const closeSession = async (userId, sessionId) => {
-    const session = await prisma.chatSession.findFirst({
-        where: {
-            id: sessionId,
-            userId
-        }
+    const session = await chatbotRepository.findSessionByIdAndUserId({
+        sessionId,
+        userId
     });
 
     if (!session) {
-        throw new Error("Chat session not found");
+        throw createHttpError("Chat session not found", 404);
     }
 
-    return prisma.chatSession.update({
-        where: {
-            id: sessionId
-        },
-        data: {
-            status: "CLOSED",
-            updatedAt: new Date()
-        }
-    });
+    if (session.status === "CLOSED") {
+        return session;
+    }
+
+    return chatbotRepository.closeSession(sessionId);
 };
 
 export const getSuggestedQuestions = async () => {
