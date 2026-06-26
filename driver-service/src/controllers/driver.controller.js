@@ -11,7 +11,7 @@ export const getMe = async (req, res) => {
     } catch (error) {
         console.error("Get driver profile error:", error);
 
-        res.status(400).json({
+        res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });
@@ -29,7 +29,7 @@ export const updateMe = async (req, res) => {
     } catch (error) {
         console.error("Update driver profile error:", error);
 
-        res.status(400).json({
+        res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });
@@ -47,7 +47,7 @@ export const updateMyStatus = async (req, res) => {
     } catch (error) {
         console.error("Update driver status error:", error);
 
-        res.status(400).json({
+        res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });
@@ -65,7 +65,7 @@ export const updateMyLocation = async (req, res) => {
     } catch (error) {
         console.error("Update driver location error:", error);
 
-        res.status(400).json({
+        res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });
@@ -83,7 +83,7 @@ export const getDrivers = async (req, res) => {
     } catch (error) {
         console.error("Get drivers error:", error);
 
-        res.status(400).json({
+        res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });
@@ -101,7 +101,7 @@ export const getNearbyDrivers = async (req, res) => {
     } catch (error) {
         console.error("Get nearby drivers error:", error);
 
-        res.status(400).json({
+        res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });
@@ -119,7 +119,7 @@ export const getDriverById = async (req, res) => {
     } catch (error) {
         console.error("Get driver error:", error);
 
-        res.status(404).json({
+        res.status(error.statusCode || 404).json({
             success: false,
             message: error.message
         });
@@ -137,7 +137,7 @@ export const approveDriver = async (req, res) => {
     } catch (error) {
         console.error("Approve driver error:", error);
 
-        res.status(400).json({
+        res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });
@@ -146,7 +146,7 @@ export const approveDriver = async (req, res) => {
 
 export const rejectDriver = async (req, res) => {
     try {
-        const driver = await driverService.rejectDriver(req.params.id);
+        const driver = await driverService.rejectDriver(req.params.id, req.body || {});
 
         res.status(200).json({
             success: true,
@@ -155,7 +155,7 @@ export const rejectDriver = async (req, res) => {
     } catch (error) {
         console.error("Reject driver error:", error);
 
-        res.status(400).json({
+        res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });
