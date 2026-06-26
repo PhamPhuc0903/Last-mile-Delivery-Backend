@@ -17,7 +17,7 @@ export const createTrackingLog = async (req, res) => {
     } catch (error) {
         console.error("Create tracking log error:", error);
 
-        res.status(400).json({
+        res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });
@@ -27,6 +27,7 @@ export const createTrackingLog = async (req, res) => {
 export const getCurrentLocation = async (req, res) => {
     try {
         const currentLocation = await trackingService.getCurrentLocation(
+            req.user,
             req.params.orderId
         );
 
@@ -37,7 +38,7 @@ export const getCurrentLocation = async (req, res) => {
     } catch (error) {
         console.error("Get current location error:", error);
 
-        res.status(404).json({
+        res.status(error.statusCode || 404).json({
             success: false,
             message: error.message
         });
@@ -47,6 +48,7 @@ export const getCurrentLocation = async (req, res) => {
 export const getTrackingHistory = async (req, res) => {
     try {
         const history = await trackingService.getTrackingHistory(
+            req.user,
             req.params.orderId,
             req.query
         );
@@ -58,7 +60,7 @@ export const getTrackingHistory = async (req, res) => {
     } catch (error) {
         console.error("Get tracking history error:", error);
 
-        res.status(400).json({
+        res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });
@@ -67,7 +69,10 @@ export const getTrackingHistory = async (req, res) => {
 
 export const getTrackingRoute = async (req, res) => {
     try {
-        const route = await trackingService.getTrackingRoute(req.params.orderId);
+        const route = await trackingService.getTrackingRoute(
+            req.user,
+            req.params.orderId
+        );
 
         res.status(200).json({
             success: true,
@@ -76,7 +81,7 @@ export const getTrackingRoute = async (req, res) => {
     } catch (error) {
         console.error("Get tracking route error:", error);
 
-        res.status(400).json({
+        res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });
