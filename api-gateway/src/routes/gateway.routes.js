@@ -26,4 +26,6 @@ router.use("/ai", createServiceProxy(process.env.AI_SERVICE_URL));
 
 router.use("/chatbot", createServiceProxy(process.env.CHATBOT_SERVICE_URL));
 
+router.use("/admin", createServiceProxy(process.env.ADMIN_SERVICE_URL));
+
 export default router;
