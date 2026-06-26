@@ -1,4 +1,35 @@
-import prisma from "../config/prisma.js";
+import * as paymentRepository from "../repositories/payment.repository.js";
+
+const createHttpError = (message, statusCode = 400) => {
+    const error = new Error(message);
+    error.statusCode = statusCode;
+    return error;
+};
+
+const isAdmin = (user) => user?.role === "ADMIN";
+const isCustomer = (user) => user?.role === "CUSTOMER";
+
+const assertAdmin = (user) => {
+    if (!isAdmin(user)) {
+        throw createHttpError("Only admin can perform this action", 403);
+    }
+};
+
+const assertCanAccessPayment = (payment, user) => {
+    if (!payment) {
+        throw createHttpError("Payment not found", 404);
+    }
+
+    if (isAdmin(user)) {
+        return;
+    }
+
+    if (isCustomer(user) && payment.customerId === user.id) {
+        return;
+    }
+
+    throw createHttpError("Forbidden", 403);
+};
 
 export const createPayment = async (user, data) => {
     const {
@@ -12,190 +43,171 @@ export const createPayment = async (user, data) => {
     } = data;
 
     if (!orderId || !amount || !paymentMethod) {
-        throw new Error("orderId, amount and paymentMethod are required");
+        throw createHttpError("orderId, amount and paymentMethod are required", 400);
+    }
+
+    if (Number(amount) <= 0) {
+        throw createHttpError("amount must be greater than 0", 400);
+    }
+
+    const orderCustomerId = await paymentRepository.getOrderCustomerId(orderId);
+
+    if (!orderCustomerId) {
+        throw createHttpError("Order not found", 404);
+    }
+
+    if (isCustomer(user) && orderCustomerId !== user.id) {
+        throw createHttpError("Forbidden", 403);
     }
 
     const finalCustomerId =
-        user.role === "ADMIN" && customerId ? customerId : user.id;
+        isAdmin(user) && customerId ? customerId : orderCustomerId;
+
+    if (finalCustomerId !== orderCustomerId) {
+        throw createHttpError("customerId does not match order owner", 400);
+    }
 
     const paymentStatus = paymentMethod === "COD" ? "UNPAID" : "PENDING";
 
     const transactionType =
         paymentMethod === "COD" ? "COD_COLLECTION" : "PAYMENT";
 
-    return prisma.paymentTransaction.create({
-        data: {
-            orderId,
-            customerId: finalCustomerId,
-            amount,
-            paymentMethod,
-            paymentStatus,
-            transactionType,
-            provider,
-            providerTransactionId,
-            note
-        }
+    return paymentRepository.createPaymentTransaction({
+        orderId,
+        customerId: finalCustomerId,
+        amount,
+        paymentMethod,
+        paymentStatus,
+        transactionType,
+        provider,
+        providerTransactionId,
+        note
     });
 };
 
 export const getMyPayments = async (userId) => {
-    return prisma.paymentTransaction.findMany({
-        where: {
-            customerId: userId
-        },
-        orderBy: {
-            createdAt: "desc"
-        }
-    });
+    return paymentRepository.findMyPayments(userId);
 };
 
 export const getPaymentById = async (user, paymentId) => {
-    const payment = await prisma.paymentTransaction.findFirst({
-        where:
-            user.role === "ADMIN"
-                ? { id: paymentId }
-                : {
-                    id: paymentId,
-                    customerId: user.id
-                }
-    });
+    const payment = await paymentRepository.findPaymentById(paymentId);
 
-    if (!payment) {
-        throw new Error("Payment not found");
-    }
+    assertCanAccessPayment(payment, user);
 
     return payment;
 };
 
 export const getPaymentsByOrderId = async (user, orderId) => {
-    const where =
-        user.role === "ADMIN"
-            ? { orderId }
-            : {
-                orderId,
-                customerId: user.id
-            };
+    if (isAdmin(user)) {
+        return paymentRepository.findPaymentsByOrderId({
+            orderId
+        });
+    }
 
-    return prisma.paymentTransaction.findMany({
-        where,
-        orderBy: {
-            createdAt: "desc"
-        }
+    if (!isCustomer(user)) {
+        throw createHttpError("Forbidden", 403);
+    }
+
+    const orderCustomerId = await paymentRepository.getOrderCustomerId(orderId);
+
+    if (orderCustomerId && orderCustomerId !== user.id) {
+        throw createHttpError("Forbidden", 403);
+    }
+
+    return paymentRepository.findPaymentsByOrderId({
+        orderId,
+        customerId: user.id
     });
 };
 
 export const markPaymentPaid = async (
+    user,
     paymentId,
-    { providerTransactionId, note }
+    { providerTransactionId, note } = {}
 ) => {
-    const payment = await prisma.paymentTransaction.findUnique({
-        where: {
-            id: paymentId
-        }
-    });
+    assertAdmin(user);
+
+    const payment = await paymentRepository.findPaymentById(paymentId);
 
     if (!payment) {
-        throw new Error("Payment not found");
+        throw createHttpError("Payment not found", 404);
     }
 
     if (payment.paymentStatus === "REFUNDED") {
-        throw new Error("Refunded payment cannot be marked as paid");
+        throw createHttpError("Refunded payment cannot be marked as paid", 400);
     }
 
-    return prisma.paymentTransaction.update({
-        where: {
-            id: paymentId
-        },
-        data: {
-            paymentStatus: "PAID",
-            providerTransactionId:
-                providerTransactionId || payment.providerTransactionId,
-            note: note || payment.note,
-            paidAt: new Date(),
-            updatedAt: new Date()
-        }
+    if (payment.paymentStatus === "CANCELLED") {
+        throw createHttpError("Cancelled payment cannot be marked as paid", 400);
+    }
+
+    return paymentRepository.markPaymentPaid({
+        paymentId,
+        providerTransactionId:
+            providerTransactionId || payment.providerTransactionId,
+        note: note || payment.note
     });
 };
 
-export const markPaymentFailed = async (paymentId, { failureReason }) => {
-    const payment = await prisma.paymentTransaction.findUnique({
-        where: {
-            id: paymentId
-        }
-    });
+export const markPaymentFailed = async (
+    user,
+    paymentId,
+    { failureReason, note } = {}
+) => {
+    assertAdmin(user);
+
+    const payment = await paymentRepository.findPaymentById(paymentId);
 
     if (!payment) {
-        throw new Error("Payment not found");
+        throw createHttpError("Payment not found", 404);
     }
 
     if (payment.paymentStatus === "PAID") {
-        throw new Error("Paid payment cannot be marked as failed");
+        throw createHttpError("Paid payment cannot be marked as failed", 400);
     }
 
-    return prisma.paymentTransaction.update({
-        where: {
-            id: paymentId
-        },
-        data: {
-            paymentStatus: "FAILED",
-            failureReason: failureReason || "Payment failed",
-            updatedAt: new Date()
-        }
+    if (payment.paymentStatus === "REFUNDED") {
+        throw createHttpError("Refunded payment cannot be marked as failed", 400);
+    }
+
+    return paymentRepository.markPaymentFailed({
+        paymentId,
+        failureReason: failureReason || note || "Payment failed"
     });
 };
 
 export const refundPayment = async (
+    user,
     paymentId,
-    { amount, providerTransactionId, note }
+    { amount, providerTransactionId, note } = {}
 ) => {
-    const payment = await prisma.paymentTransaction.findUnique({
-        where: {
-            id: paymentId
-        }
-    });
+    assertAdmin(user);
+
+    const payment = await paymentRepository.findPaymentById(paymentId);
 
     if (!payment) {
-        throw new Error("Payment not found");
+        throw createHttpError("Payment not found", 404);
     }
 
     if (payment.paymentStatus !== "PAID") {
-        throw new Error("Only PAID payment can be refunded");
+        throw createHttpError("Only PAID payment can be refunded", 400);
     }
 
     const refundAmount = amount || payment.amount;
 
-    const result = await prisma.$transaction(async (tx) => {
-        const updatedOriginalPayment = await tx.paymentTransaction.update({
-            where: {
-                id: paymentId
-            },
-            data: {
-                paymentStatus: "REFUNDED",
-                refundedAt: new Date(),
-                updatedAt: new Date()
-            }
-        });
+    if (Number(refundAmount) <= 0) {
+        throw createHttpError("refund amount must be greater than 0", 400);
+    }
 
-        const refundTransaction = await tx.paymentTransaction.create({
-            data: {
-                orderId: payment.orderId,
-                customerId: payment.customerId,
-                amount: refundAmount,
-                paymentMethod: payment.paymentMethod,
-                paymentStatus: "REFUNDED",
-                transactionType: "REFUND",
-                provider: payment.provider,
-                providerTransactionId,
-                note: note || "Payment refunded",
-                refundedAt: new Date()
-            }
-        });
+    if (Number(refundAmount) > Number(payment.amount)) {
+        throw createHttpError("refund amount cannot exceed payment amount", 400);
+    }
 
-        return {
-            originalPayment: updatedOriginalPayment,
-            refundTransaction
-        };
+    return paymentRepository.refundPayment({
+        paymentId,
+        payment,
+        refundAmount,
+        providerTransactionId,
+        note
     });
-
-    return result;
 };
