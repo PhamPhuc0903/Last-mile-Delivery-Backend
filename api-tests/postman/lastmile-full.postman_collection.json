@@ -1,0 +1,4462 @@
+{
+  "info": {
+    "_postman_id": "3cdd7cc7-66fd-4f26-a4b0-lastmilefull",
+    "name": "Last Mile Delivery - Full API Route Check",
+    "description": "Collection kiểm tra nhanh toàn bộ endpoint theo docs/api-endpoints.md. Mục tiêu chính là phát hiện service chết/lỗi 5xx/502 qua Newman. Một số API có thể trả 401/403/404 nếu thiếu token hoặc thiếu dữ liệu seed; đó không nhất thiết là lỗi route.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "00 Setup - Login tokens",
+      "item": [
+        {
+          "name": "Customer Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}/auth/login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"{{customerPhone}}\",\n  \"password\": \"{{customerPassword}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });",
+                  "if (pm.response.code === 200 || pm.response.code === 201) {\n  const json = pm.response.json();\n  const data = json.data || json;\n  const token = data.accessToken || data.token || data?.tokens?.accessToken;\n  const refresh = data.refreshToken || data?.tokens?.refreshToken;\n  const userId = data?.user?.id || data?.id;\n  if (token) pm.environment.set('customerToken', token);\n  if (refresh) pm.environment.set('refreshToken', refresh);\n  if (userId) pm.environment.set('customerId', userId);\n}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}/auth/login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"{{adminPhone}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });",
+                  "if (pm.response.code === 200 || pm.response.code === 201) {\n  const json = pm.response.json();\n  const data = json.data || json;\n  const token = data.accessToken || data.token || data?.tokens?.accessToken;\n  const refresh = data.refreshToken || data?.tokens?.refreshToken;\n  const userId = data?.user?.id || data?.id;\n  if (token) pm.environment.set('adminToken', token);\n  if (refresh) pm.environment.set('refreshToken', refresh);\n  if (userId) pm.environment.set('adminId', userId);\n}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Driver Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}/auth/login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"{{driverPhone}}\",\n  \"password\": \"{{driverPassword}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });",
+                  "if (pm.response.code === 200 || pm.response.code === 201) {\n  const json = pm.response.json();\n  const data = json.data || json;\n  const token = data.accessToken || data.token || data?.tokens?.accessToken;\n  const refresh = data.refreshToken || data?.tokens?.refreshToken;\n  const userId = data?.user?.id || data?.id;\n  if (token) pm.environment.set('driverToken', token);\n  if (refresh) pm.environment.set('refreshToken', refresh);\n  if (userId) pm.environment.set('driverUserId', userId);\n}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "API Gateway",
+      "item": [
+        {
+          "name": "GET /health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}/health"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Health trả 200', function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "pm.test('Response time < 5000ms', function () { pm.expect(pm.response.responseTime).to.be.below(5000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/",
+              "host": [
+                "{{baseUrl}}/"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Health trả 200', function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "pm.test('Response time < 5000ms', function () { pm.expect(pm.response.responseTime).to.be.below(5000); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Auth Service",
+      "item": [
+        {
+          "name": "GET /health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{authServiceUrl}}/health",
+              "host": [
+                "{{authServiceUrl}}/health"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Health trả 200', function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "pm.test('Response time < 5000ms', function () { pm.expect(pm.response.responseTime).to.be.below(5000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /auth/register",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}/auth/register"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Nguyen Van Test\",\n  \"phone\": \"{{customerPhone}}\",\n  \"email\": \"test.customer@example.com\",\n  \"password\": \"{{customerPassword}}\",\n  \"role\": \"CUSTOMER\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /auth/login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}/auth/login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"{{customerPhone}}\",\n  \"password\": \"{{customerPassword}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });",
+                  "if (pm.response.code === 200 || pm.response.code === 201) {\n  const json = pm.response.json();\n  const data = json.data || json;\n  const token = data.accessToken || data.token || data?.tokens?.accessToken;\n  const refresh = data.refreshToken || data?.tokens?.refreshToken;\n  const userId = data?.user?.id || data?.id;\n  if (token) pm.environment.set('customerToken', token);\n  if (refresh) pm.environment.set('refreshToken', refresh);\n  if (userId) pm.environment.set('customerId', userId);\n}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /auth/refresh-token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/refresh-token",
+              "host": [
+                "{{baseUrl}}/auth/refresh-token"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /auth/me",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": [
+                "{{baseUrl}}/auth/me"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /auth/logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": [
+                "{{baseUrl}}/auth/logout"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH /auth/change-password",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/change-password",
+              "host": [
+                "{{baseUrl}}/auth/change-password"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"oldPassword\": \"{{customerPassword}}\",\n  \"newPassword\": \"{{customerPassword}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /auth/forgot-password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/forgot-password",
+              "host": [
+                "{{baseUrl}}/auth/forgot-password"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"{{customerPhone}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /auth/reset-password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/reset-password",
+              "host": [
+                "{{baseUrl}}/auth/reset-password"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resetToken\": \"{{resetToken}}\",\n  \"newPassword\": \"{{customerPassword}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "User Service",
+      "item": [
+        {
+          "name": "GET /health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{userServiceUrl}}/health",
+              "host": [
+                "{{userServiceUrl}}/health"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Health trả 200', function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "pm.test('Response time < 5000ms', function () { pm.expect(pm.response.responseTime).to.be.below(5000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /users/me",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users/me",
+              "host": [
+                "{{baseUrl}}/users/me"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH /users/me",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users/me",
+              "host": [
+                "{{baseUrl}}/users/me"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Nguyen Van Test Updated\",\n  \"email\": \"test.updated@example.com\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /users/me/addresses",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users/me/addresses",
+              "host": [
+                "{{baseUrl}}/users/me/addresses"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /users/me/addresses",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users/me/addresses",
+              "host": [
+                "{{baseUrl}}/users/me/addresses"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"Nhà riêng\",\n  \"receiverName\": \"Nguyen Van Test\",\n  \"receiverPhone\": \"{{customerPhone}}\",\n  \"addressLine\": \"12 Nguyen Van Cu\",\n  \"ward\": \"Ward 1\",\n  \"district\": \"District 5\",\n  \"city\": \"Ho Chi Minh City\",\n  \"latitude\": 10.762622,\n  \"longitude\": 106.660172,\n  \"isDefault\": true\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });",
+                  "const json=pm.response.json(); const d=json.data||json; if(d.id) pm.environment.set('addressId', d.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /users/me/addresses/:id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users/me/addresses/{{addressId}}",
+              "host": [
+                "{{baseUrl}}/users/me/addresses/{{addressId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH /users/me/addresses/:id",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users/me/addresses/{{addressId}}",
+              "host": [
+                "{{baseUrl}}/users/me/addresses/{{addressId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"Nhà đã cập nhật\",\n  \"isDefault\": true\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE /users/me/addresses/:id",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/users/me/addresses/{{addressId}}",
+              "host": [
+                "{{baseUrl}}/users/me/addresses/{{addressId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Order Service",
+      "item": [
+        {
+          "name": "GET /health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{orderServiceUrl}}/health",
+              "host": [
+                "{{orderServiceUrl}}/health"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Health trả 200', function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "pm.test('Response time < 5000ms', function () { pm.expect(pm.response.responseTime).to.be.below(5000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /orders",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}/orders"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickupAddressLine\": \"12 Nguyen Van Cu\",\n  \"pickupWard\": \"Ward 1\",\n  \"pickupDistrict\": \"District 5\",\n  \"pickupCity\": \"Ho Chi Minh City\",\n  \"pickupLat\": 10.762622,\n  \"pickupLng\": 106.660172,\n  \"receiverName\": \"Tran Van B\",\n  \"receiverPhone\": \"0912345678\",\n  \"deliveryAddressLine\": \"25 Le Loi\",\n  \"deliveryWard\": \"Ben Nghe\",\n  \"deliveryDistrict\": \"District 1\",\n  \"deliveryCity\": \"Ho Chi Minh City\",\n  \"deliveryLat\": 10.776889,\n  \"deliveryLng\": 106.700806,\n  \"distanceKm\": 5.2,\n  \"paymentMethod\": \"COD\",\n  \"note\": \"Call before delivery\",\n  \"items\": [\n    {\n      \"itemName\": \"Shoes\",\n      \"quantity\": 1,\n      \"weightKg\": 0.8,\n      \"note\": \"Fragile box\"\n    }\n  ]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });",
+                  "const json=pm.response.json(); const d=json.data||json; if(d.id) pm.environment.set('orderId', d.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /orders",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders",
+              "host": [
+                "{{baseUrl}}/orders"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /orders/my-orders",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/my-orders",
+              "host": [
+                "{{baseUrl}}/orders/my-orders"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /orders/:id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/{{orderId}}",
+              "host": [
+                "{{baseUrl}}/orders/{{orderId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH /orders/:id",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/{{orderId}}",
+              "host": [
+                "{{baseUrl}}/orders/{{orderId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"Updated by API test\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH /orders/:id/cancel",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/{{orderId}}/cancel",
+              "host": [
+                "{{baseUrl}}/orders/{{orderId}}/cancel"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Test cancel order\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH /orders/:id/status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/{{orderId}}/status",
+              "host": [
+                "{{baseUrl}}/orders/{{orderId}}/status"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"CONFIRMED\",\n  \"note\": \"Updated by API test\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /orders/:id/timeline",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/{{orderId}}/timeline",
+              "host": [
+                "{{baseUrl}}/orders/{{orderId}}/timeline"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /orders/stats/today",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/stats/today",
+              "host": [
+                "{{baseUrl}}/orders/stats/today"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /orders/stats/month",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/stats/month",
+              "host": [
+                "{{baseUrl}}/orders/stats/month"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /orders/stats/year",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/orders/stats/year",
+              "host": [
+                "{{baseUrl}}/orders/stats/year"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Payment Service",
+      "item": [
+        {
+          "name": "GET /health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{paymentServiceUrl}}/health",
+              "host": [
+                "{{paymentServiceUrl}}/health"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Health trả 200', function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "pm.test('Response time < 5000ms', function () { pm.expect(pm.response.responseTime).to.be.below(5000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /payments",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payments",
+              "host": [
+                "{{baseUrl}}/payments"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"{{orderId}}\",\n  \"customerId\": \"{{customerId}}\",\n  \"amount\": 35000,\n  \"paymentMethod\": \"COD\",\n  \"note\": \"Test payment\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });",
+                  "const json=pm.response.json(); const d=json.data||json; if(d.id) pm.environment.set('paymentId', d.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /payments/my-payments",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payments/my-payments",
+              "host": [
+                "{{baseUrl}}/payments/my-payments"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /payments/:id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payments/{{paymentId}}",
+              "host": [
+                "{{baseUrl}}/payments/{{paymentId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /payments/order/:orderId",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payments/order/{{orderId}}",
+              "host": [
+                "{{baseUrl}}/payments/order/{{orderId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH /payments/:id/paid",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payments/{{paymentId}}/paid",
+              "host": [
+                "{{baseUrl}}/payments/{{paymentId}}/paid"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"providerTransactionId\": \"TEST_TXN_001\",\n  \"note\": \"Mark paid by API test\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH /payments/:id/failed",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payments/{{paymentId}}/failed",
+              "host": [
+                "{{baseUrl}}/payments/{{paymentId}}/failed"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"failureReason\": \"Test failure\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /payments/:id/refund",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/payments/{{paymentId}}/refund",
+              "host": [
+                "{{baseUrl}}/payments/{{paymentId}}/refund"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"Refund by API test\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Driver Service",
+      "item": [
+        {
+          "name": "GET /health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{driverServiceUrl}}/health",
+              "host": [
+                "{{driverServiceUrl}}/health"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Health trả 200', function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "pm.test('Response time < 5000ms', function () { pm.expect(pm.response.responseTime).to.be.below(5000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /drivers/me",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/drivers/me",
+              "host": [
+                "{{baseUrl}}/drivers/me"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH /drivers/me",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/drivers/me",
+              "host": [
+                "{{baseUrl}}/drivers/me"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"licensePlate\": \"59A1-12345\",\n  \"vehicleType\": \"MOTORBIKE\",\n  \"vehicleName\": \"Honda Vision\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH /drivers/me/status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/drivers/me/status",
+              "host": [
+                "{{baseUrl}}/drivers/me/status"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"ONLINE\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /drivers/me/location",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/drivers/me/location",
+              "host": [
+                "{{baseUrl}}/drivers/me/location"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"latitude\": 10.762622,\n  \"longitude\": 106.660172\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH /drivers/me/location",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/drivers/me/location",
+              "host": [
+                "{{baseUrl}}/drivers/me/location"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"latitude\": 10.762622,\n  \"longitude\": 106.660172\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /drivers",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/drivers",
+              "host": [
+                "{{baseUrl}}/drivers"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /drivers/nearby",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/drivers/nearby",
+              "host": [
+                "{{baseUrl}}/drivers/nearby"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /drivers/:id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/drivers/{{driverId}}",
+              "host": [
+                "{{baseUrl}}/drivers/{{driverId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH /drivers/:id/approve",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/drivers/{{driverId}}/approve",
+              "host": [
+                "{{baseUrl}}/drivers/{{driverId}}/approve"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"Approved by API test\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH /drivers/:id/reject",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/drivers/{{driverId}}/reject",
+              "host": [
+                "{{baseUrl}}/drivers/{{driverId}}/reject"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Rejected by API test\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Dispatch Service",
+      "item": [
+        {
+          "name": "GET /health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{dispatchServiceUrl}}/health",
+              "host": [
+                "{{dispatchServiceUrl}}/health"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Health trả 200', function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "pm.test('Response time < 5000ms', function () { pm.expect(pm.response.responseTime).to.be.below(5000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /dispatch/assignments",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dispatch/assignments",
+              "host": [
+                "{{baseUrl}}/dispatch/assignments"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"{{orderId}}\",\n  \"driverId\": \"{{driverId}}\",\n  \"note\": \"Manual assignment by API test\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });",
+                  "const json=pm.response.json(); const d=json.data||json; if(d.id) pm.environment.set('assignmentId', d.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /dispatch/assign",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dispatch/assign",
+              "host": [
+                "{{baseUrl}}/dispatch/assign"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"{{orderId}}\",\n  \"driverId\": \"{{driverId}}\",\n  \"note\": \"Alias assignment by API test\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /dispatch/assignments/auto",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dispatch/assignments/auto",
+              "host": [
+                "{{baseUrl}}/dispatch/assignments/auto"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"{{orderId}}\",\n  \"pickupLat\": 10.762622,\n  \"pickupLng\": 106.660172\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /dispatch/auto-assign",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dispatch/auto-assign",
+              "host": [
+                "{{baseUrl}}/dispatch/auto-assign"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"{{orderId}}\",\n  \"pickupLat\": 10.762622,\n  \"pickupLng\": 106.660172\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /dispatch/assignments",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dispatch/assignments",
+              "host": [
+                "{{baseUrl}}/dispatch/assignments"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /dispatch/history",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dispatch/history",
+              "host": [
+                "{{baseUrl}}/dispatch/history"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /dispatch/assignments/:id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dispatch/assignments/{{assignmentId}}",
+              "host": [
+                "{{baseUrl}}/dispatch/assignments/{{assignmentId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /dispatch/my-assignments",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dispatch/my-assignments",
+              "host": [
+                "{{baseUrl}}/dispatch/my-assignments"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /dispatch/my-current-assignment",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dispatch/my-current-assignment",
+              "host": [
+                "{{baseUrl}}/dispatch/my-current-assignment"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /dispatch/my-history",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dispatch/my-history",
+              "host": [
+                "{{baseUrl}}/dispatch/my-history"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH /dispatch/assignments/:id/accept",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driverToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dispatch/assignments/{{assignmentId}}/accept",
+              "host": [
+                "{{baseUrl}}/dispatch/assignments/{{assignmentId}}/accept"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"Accepted by API test\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH /dispatch/assignments/:id/reject",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driverToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dispatch/assignments/{{assignmentId}}/reject",
+              "host": [
+                "{{baseUrl}}/dispatch/assignments/{{assignmentId}}/reject"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Rejected by API test\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH /dispatch/assignments/:id/cancel",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dispatch/assignments/{{assignmentId}}/cancel",
+              "host": [
+                "{{baseUrl}}/dispatch/assignments/{{assignmentId}}/cancel"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Cancelled by API test\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH /dispatch/assignments/:id/complete",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driverToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/dispatch/assignments/{{assignmentId}}/complete",
+              "host": [
+                "{{baseUrl}}/dispatch/assignments/{{assignmentId}}/complete"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"Completed by API test\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Tracking Service",
+      "item": [
+        {
+          "name": "GET /health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{trackingServiceUrl}}/health",
+              "host": [
+                "{{trackingServiceUrl}}/health"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Health trả 200', function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "pm.test('Response time < 5000ms', function () { pm.expect(pm.response.responseTime).to.be.below(5000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /tracking/location",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tracking/location",
+              "host": [
+                "{{baseUrl}}/tracking/location"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"{{orderId}}\",\n  \"driverId\": \"{{driverId}}\",\n  \"latitude\": 10.762622,\n  \"longitude\": 106.660172,\n  \"eventType\": \"LOCATION_UPDATE\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /tracking/orders/:orderId/location",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tracking/orders/{{orderId}}/location",
+              "host": [
+                "{{baseUrl}}/tracking/orders/{{orderId}}/location"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"driverId\": \"{{driverId}}\",\n  \"latitude\": 10.762622,\n  \"longitude\": 106.660172,\n  \"eventType\": \"LOCATION_UPDATE\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /tracking/orders/:orderId",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tracking/orders/{{orderId}}",
+              "host": [
+                "{{baseUrl}}/tracking/orders/{{orderId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /tracking/orders/:orderId/current",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tracking/orders/{{orderId}}/current",
+              "host": [
+                "{{baseUrl}}/tracking/orders/{{orderId}}/current"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /tracking/orders/:orderId/history",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tracking/orders/{{orderId}}/history",
+              "host": [
+                "{{baseUrl}}/tracking/orders/{{orderId}}/history"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /tracking/orders/:orderId/route",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tracking/orders/{{orderId}}/route",
+              "host": [
+                "{{baseUrl}}/tracking/orders/{{orderId}}/route"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Notification Service",
+      "item": [
+        {
+          "name": "GET /health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{notificationServiceUrl}}/health",
+              "host": [
+                "{{notificationServiceUrl}}/health"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Health trả 200', function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "pm.test('Response time < 5000ms', function () { pm.expect(pm.response.responseTime).to.be.below(5000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /notifications",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/notifications",
+              "host": [
+                "{{baseUrl}}/notifications"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{customerId}}\",\n  \"title\": \"Test notification\",\n  \"message\": \"Thông báo test từ Newman\",\n  \"type\": \"SYSTEM\",\n  \"channel\": \"IN_APP\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });",
+                  "const json=pm.response.json(); const d=json.data||json; if(d.id) pm.environment.set('notificationId', d.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /notifications/push",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/push",
+              "host": [
+                "{{baseUrl}}/notifications/push"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{customerId}}\",\n  \"title\": \"Test push\",\n  \"message\": \"Push notification test\",\n  \"type\": \"SYSTEM\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /notifications/bulk",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/bulk",
+              "host": [
+                "{{baseUrl}}/notifications/bulk"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userIds\": [\n    \"{{customerId}}\"\n  ],\n  \"title\": \"Bulk test\",\n  \"message\": \"Bulk notification test\",\n  \"type\": \"SYSTEM\",\n  \"channel\": \"IN_APP\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /notifications/broadcast",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/broadcast",
+              "host": [
+                "{{baseUrl}}/notifications/broadcast"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Broadcast test\",\n  \"message\": \"Broadcast notification test\",\n  \"type\": \"SYSTEM\",\n  \"channel\": \"IN_APP\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/notifications",
+              "host": [
+                "{{baseUrl}}/notifications"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /notifications/me",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/me",
+              "host": [
+                "{{baseUrl}}/notifications/me"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /notifications/me/unread-count",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/me/unread-count",
+              "host": [
+                "{{baseUrl}}/notifications/me/unread-count"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH /notifications/me/read-all",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/me/read-all",
+              "host": [
+                "{{baseUrl}}/notifications/me/read-all"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /notifications/:id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/{{notificationId}}",
+              "host": [
+                "{{baseUrl}}/notifications/{{notificationId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH /notifications/:id/read",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/{{notificationId}}/read",
+              "host": [
+                "{{baseUrl}}/notifications/{{notificationId}}/read"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE /notifications/:id",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/notifications/{{notificationId}}",
+              "host": [
+                "{{baseUrl}}/notifications/{{notificationId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "AI Service",
+      "item": [
+        {
+          "name": "GET /health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{aiServiceUrl}}/health",
+              "host": [
+                "{{aiServiceUrl}}/health"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Health trả 200', function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "pm.test('Response time < 5000ms', function () { pm.expect(pm.response.responseTime).to.be.below(5000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /ai/recommend-driver",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ai/recommend-driver",
+              "host": [
+                "{{baseUrl}}/ai/recommend-driver"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"{{orderId}}\",\n  \"pickupLat\": 10.762622,\n  \"pickupLng\": 106.660172,\n  \"drivers\": [\n    {\n      \"driverId\": \"{{driverId}}\",\n      \"distanceKm\": 2.5,\n      \"rating\": 4.8,\n      \"totalDeliveries\": 120\n    }\n  ]\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /ai/eta",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ai/eta",
+              "host": [
+                "{{baseUrl}}/ai/eta"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"distanceKm\": 5.2,\n  \"averageSpeedKmh\": 25,\n  \"trafficLevel\": \"MEDIUM\",\n  \"pickupHour\": 17,\n  \"vehicleType\": \"MOTORBIKE\",\n  \"driverRating\": 4.8,\n  \"driverTotalDeliveries\": 120\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /ai/predict-eta",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ai/predict-eta",
+              "host": [
+                "{{baseUrl}}/ai/predict-eta"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"distanceKm\": 5.2,\n  \"averageSpeedKmh\": 25,\n  \"trafficLevel\": \"MEDIUM\",\n  \"pickupHour\": 17,\n  \"vehicleType\": \"MOTORBIKE\",\n  \"driverRating\": 4.8,\n  \"driverTotalDeliveries\": 120\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /ai/eta/predict",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ai/eta/predict",
+              "host": [
+                "{{baseUrl}}/ai/eta/predict"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"distanceKm\": 5.2,\n  \"averageSpeedKmh\": 25,\n  \"trafficLevel\": \"MEDIUM\",\n  \"pickupHour\": 17,\n  \"vehicleType\": \"MOTORBIKE\",\n  \"driverRating\": 4.8,\n  \"driverTotalDeliveries\": 120\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /ai/anomaly-detection",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ai/anomaly-detection",
+              "host": [
+                "{{baseUrl}}/ai/anomaly-detection"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"{{orderId}}\",\n  \"distanceKm\": 25,\n  \"estimatedMinutes\": 120,\n  \"actualMinutes\": 210,\n  \"trafficLevel\": \"HIGH\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /ai/detect-anomaly",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ai/detect-anomaly",
+              "host": [
+                "{{baseUrl}}/ai/detect-anomaly"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"{{orderId}}\",\n  \"distanceKm\": 25,\n  \"estimatedMinutes\": 120,\n  \"actualMinutes\": 210,\n  \"trafficLevel\": \"HIGH\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /ai/risk-score",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ai/risk-score",
+              "host": [
+                "{{baseUrl}}/ai/risk-score"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"{{orderId}}\",\n  \"distanceKm\": 20,\n  \"codAmount\": 1000000,\n  \"estimatedMinutes\": 90,\n  \"driverDistanceKm\": 8,\n  \"trafficLevel\": \"HIGH\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /ai/eta/training-samples",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ai/eta/training-samples",
+              "host": [
+                "{{baseUrl}}/ai/eta/training-samples"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"{{orderId}}\",\n  \"distanceKm\": 5.2,\n  \"averageSpeedKmh\": 25,\n  \"trafficLevel\": \"MEDIUM\",\n  \"pickupHour\": 17,\n  \"vehicleType\": \"MOTORBIKE\",\n  \"driverRating\": 4.8,\n  \"driverTotalDeliveries\": 120,\n  \"actualMinutes\": 24\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /ai/eta/training-samples/seed",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ai/eta/training-samples/seed",
+              "host": [
+                "{{baseUrl}}/ai/eta/training-samples/seed"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"count\": 20\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /ai/eta/train",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ai/eta/train",
+              "host": [
+                "{{baseUrl}}/ai/eta/train"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /ai/eta/model",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ai/eta/model",
+              "host": [
+                "{{baseUrl}}/ai/eta/model"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /ai/logs/recommendations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ai/logs/recommendations",
+              "host": [
+                "{{baseUrl}}/ai/logs/recommendations"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /ai/logs/etas",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ai/logs/etas",
+              "host": [
+                "{{baseUrl}}/ai/logs/etas"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /ai/logs/anomalies",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ai/logs/anomalies",
+              "host": [
+                "{{baseUrl}}/ai/logs/anomalies"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Chatbot Service",
+      "item": [
+        {
+          "name": "GET /health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{chatbotServiceUrl}}/health",
+              "host": [
+                "{{chatbotServiceUrl}}/health"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Health trả 200', function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "pm.test('Response time < 5000ms', function () { pm.expect(pm.response.responseTime).to.be.below(5000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /chatbot/session",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/chatbot/session",
+              "host": [
+                "{{baseUrl}}/chatbot/session"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"{{orderId}}\",\n  \"title\": \"Hỏi về đơn hàng\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });",
+                  "const json=pm.response.json(); const d=json.data||json; if(d.id) pm.environment.set('chatSessionId', d.id); if(d.sessionId) pm.environment.set('chatSessionId', d.sessionId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /chatbot/sessions",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/chatbot/sessions",
+              "host": [
+                "{{baseUrl}}/chatbot/sessions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"{{orderId}}\",\n  \"title\": \"Hỏi về đơn hàng\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });",
+                  "const json=pm.response.json(); const d=json.data||json; if(d.id) pm.environment.set('chatSessionId', d.id); if(d.sessionId) pm.environment.set('chatSessionId', d.sessionId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /chatbot/sessions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/chatbot/sessions",
+              "host": [
+                "{{baseUrl}}/chatbot/sessions"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /chatbot/history",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/chatbot/history",
+              "host": [
+                "{{baseUrl}}/chatbot/history"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /chatbot/session/:id/messages",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/chatbot/session/{{chatSessionId}}/messages",
+              "host": [
+                "{{baseUrl}}/chatbot/session/{{chatSessionId}}/messages"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /chatbot/sessions/:id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/chatbot/sessions/{{chatSessionId}}",
+              "host": [
+                "{{baseUrl}}/chatbot/sessions/{{chatSessionId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /chatbot/sessions/:id/messages",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/chatbot/sessions/{{chatSessionId}}/messages",
+              "host": [
+                "{{baseUrl}}/chatbot/sessions/{{chatSessionId}}/messages"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"Tôi muốn kiểm tra trạng thái đơn hàng.\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /chatbot/message",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/chatbot/message",
+              "host": [
+                "{{baseUrl}}/chatbot/message"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"{{orderId}}\",\n  \"message\": \"Khi nào tôi nhận được hàng?\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /chatbot/ask",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/chatbot/ask",
+              "host": [
+                "{{baseUrl}}/chatbot/ask"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sessionId\": \"{{chatSessionId}}\",\n  \"orderId\": \"{{orderId}}\",\n  \"message\": \"Đơn hàng của tôi đang ở đâu?\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /chatbot/suggestions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/chatbot/suggestions",
+              "host": [
+                "{{baseUrl}}/chatbot/suggestions"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH /chatbot/sessions/:id/close",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/chatbot/sessions/{{chatSessionId}}/close",
+              "host": [
+                "{{baseUrl}}/chatbot/sessions/{{chatSessionId}}/close"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Admin Service",
+      "item": [
+        {
+          "name": "GET /health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{adminServiceUrl}}/health",
+              "host": [
+                "{{adminServiceUrl}}/health"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Health trả 200', function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "pm.test('Response time < 5000ms', function () { pm.expect(pm.response.responseTime).to.be.below(5000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /admin/dashboard",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/dashboard",
+              "host": [
+                "{{baseUrl}}/admin/dashboard"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /admin/system/health",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/system/health",
+              "host": [
+                "{{baseUrl}}/admin/system/health"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /admin/users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users",
+              "host": [
+                "{{baseUrl}}/admin/users"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /admin/users",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users",
+              "host": [
+                "{{baseUrl}}/admin/users"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Admin Created User\",\n  \"phone\": \"{{testUserPhone}}\",\n  \"email\": \"admin.created@example.com\",\n  \"password\": \"123456\",\n  \"role\": \"CUSTOMER\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /admin/users/:id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/{{userId}}",
+              "host": [
+                "{{baseUrl}}/admin/users/{{userId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH /admin/users/:id",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/{{userId}}",
+              "host": [
+                "{{baseUrl}}/admin/users/{{userId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Admin Updated User\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH /admin/users/:id/block",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/{{userId}}/block",
+              "host": [
+                "{{baseUrl}}/admin/users/{{userId}}/block"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH /admin/users/:id/unblock",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/{{userId}}/unblock",
+              "host": [
+                "{{baseUrl}}/admin/users/{{userId}}/unblock"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DELETE /admin/users/:id",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/{{userId}}",
+              "host": [
+                "{{baseUrl}}/admin/users/{{userId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /admin/orders",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/orders",
+              "host": [
+                "{{baseUrl}}/admin/orders"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /admin/orders/:id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/orders/{{orderId}}",
+              "host": [
+                "{{baseUrl}}/admin/orders/{{orderId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /admin/drivers",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/drivers",
+              "host": [
+                "{{baseUrl}}/admin/drivers"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /admin/drivers/:id",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/drivers/{{driverId}}",
+              "host": [
+                "{{baseUrl}}/admin/drivers/{{driverId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PATCH /admin/drivers/:id/status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/drivers/{{driverId}}/status",
+              "host": [
+                "{{baseUrl}}/admin/drivers/{{driverId}}/status"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"SUSPENDED\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /admin/payments",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/payments",
+              "host": [
+                "{{baseUrl}}/admin/payments"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /admin/ai/recommendations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/ai/recommendations",
+              "host": [
+                "{{baseUrl}}/admin/ai/recommendations"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /admin/ai/anomalies",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/ai/anomalies",
+              "host": [
+                "{{baseUrl}}/admin/ai/anomalies"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "event": []
+}
