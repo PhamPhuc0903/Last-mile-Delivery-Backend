@@ -4,20 +4,43 @@ services:
 
   api-gateway:
     build: ./api-gateway
+    env_file:
+      - ./api-gateway/.env
+    environment:
+      PORT: 3000
+      AUTH_SERVICE_URL: http://auth-service:3000
+      USER_SERVICE_URL: http://user-service:3000
+      ORDER_SERVICE_URL: http://order-service:3000
+      PAYMENT_SERVICE_URL: http://payment-service:3000
+      DRIVER_SERVICE_URL: http://driver-service:3000
+      TRACKING_SERVICE_URL: http://tracking-service:3000
+      DISPATCH_SERVICE_URL: http://dispatch-service:3000
+      NOTIFICATION_SERVICE_URL: http://notification-service:3000
+      AI_SERVICE_URL: http://ai-service:3000
+      CHATBOT_SERVICE_URL: http://chatbot-service:3000
+      ADMIN_SERVICE_URL: http://admin-service:3000
     container_name: api-gateway
     ports:
       - "3000:3000"
     depends_on:
       - auth-service
+      - user-service
       - order-service
+      - payment-service
       - driver-service
       - tracking-service
-      - payment-service
+      - dispatch-service
       - notification-service
       - ai-service
+      - chatbot-service
+      - admin-service
 
   auth-service:
     build: ./auth-service
+    env_file:
+      - ./auth-service/.env
+    environment:
+      DATABASE_URL: postgresql://delivery:delivery@postgres:5432/delivery_db?schema=auth
     container_name: auth-service
     ports:
       - "3001:3000"
@@ -28,6 +51,10 @@ services:
 
   order-service:
     build: ./order-service
+    env_file:
+      - ./order-service/.env
+    environment:
+      DATABASE_URL: postgresql://delivery:delivery@postgres:5432/delivery_db?schema=orders
     container_name: order-service
     ports:
       - "3002:3000"
@@ -38,6 +65,10 @@ services:
 
   driver-service:
     build: ./driver-service
+    env_file:
+      - ./driver-service/.env
+    environment:
+      DATABASE_URL: postgresql://delivery:delivery@postgres:5432/delivery_db?schema=drivers
     container_name: driver-service
     ports:
       - "3003:3000"
@@ -48,33 +79,129 @@ services:
 
   tracking-service:
     build: ./tracking-service
+    env_file:
+      - ./tracking-service/.env
+    environment:
+      DATABASE_URL: postgresql://delivery:delivery@postgres:5432/delivery_db?schema=tracking
     container_name: tracking-service
     ports:
       - "3004:3000"
     depends_on:
+      - postgres
       - redis
+      - rabbitmq
 
-  payment-service:
-    build: ./payment-service
-    container_name: payment-service
+  dispatch-service:
+    build: ./dispatch-service
+    env_file:
+      - ./dispatch-service/.env
+    environment:
+      DATABASE_URL: postgresql://delivery:delivery@postgres:5432/delivery_db?schema=dispatch
+      DRIVER_SERVICE_URL: http://driver-service:3000
+    container_name: dispatch-service
     ports:
       - "3005:3000"
     depends_on:
       - postgres
+      - redis
+      - rabbitmq
+      - driver-service
 
   notification-service:
     build: ./notification-service
+    env_file:
+      - ./notification-service/.env
+    environment:
+      DATABASE_URL: postgresql://delivery:delivery@postgres:5432/delivery_db?schema=notifications
     container_name: notification-service
     ports:
       - "3006:3000"
     depends_on:
+      - postgres
+      - redis
       - rabbitmq
 
   ai-service:
     build: ./ai-service
+    env_file:
+      - ./ai-service/.env
+    environment:
+      DATABASE_URL: postgresql://delivery:delivery@postgres:5432/delivery_db?schema=ai
+      DRIVER_SERVICE_URL: http://driver-service:3000
     container_name: ai-service
     ports:
       - "3007:3000"
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+      - driver-service
+
+  user-service:
+    build: ./user-service
+    env_file:
+      - ./user-service/.env
+    environment:
+      DATABASE_URL: postgresql://delivery:delivery@postgres:5432/delivery_db?schema=user_profile
+    container_name: user-service
+    ports:
+      - "3008:3000"
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+
+  admin-service:
+    build: ./admin-service
+    env_file:
+      - ./admin-service/.env
+    environment:
+      DATABASE_URL: postgresql://delivery:delivery@postgres:5432/delivery_db?schema=auth
+
+      AUTH_SERVICE_URL: http://auth-service:3000
+      USER_SERVICE_URL: http://user-service:3000
+      ORDER_SERVICE_URL: http://order-service:3000
+      PAYMENT_SERVICE_URL: http://payment-service:3000
+      DRIVER_SERVICE_URL: http://driver-service:3000
+      TRACKING_SERVICE_URL: http://tracking-service:3000
+      DISPATCH_SERVICE_URL: http://dispatch-service:3000
+      NOTIFICATION_SERVICE_URL: http://notification-service:3000
+      AI_SERVICE_URL: http://ai-service:3000
+      CHATBOT_SERVICE_URL: http://chatbot-service:3000
+    container_name: admin-service
+    ports:
+      - "3009:3000"
+    depends_on:
+      - postgres
+
+  chatbot-service:
+    build: ./chatbot-service
+    env_file:
+      - ./chatbot-service/.env
+    environment:
+      DATABASE_URL: postgresql://delivery:delivery@postgres:5432/delivery_db?schema=chatbot
+      ORDER_SERVICE_URL: http://order-service:3000
+    container_name: chatbot-service
+    ports:
+      - "3010:3000"
+    depends_on:
+      - postgres
+      - order-service
+
+  payment-service:
+    build: ./payment-service
+    env_file:
+      - ./payment-service/.env
+    environment:
+      PORT: 3000
+      DATABASE_URL: postgresql://delivery:delivery@postgres:5432/delivery_db?schema=payments
+    container_name: payment-service
+    ports:
+      - "3011:3000"
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
 
   postgres:
     image: postgres:16
@@ -88,6 +215,7 @@ services:
       - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
 
   redis:
     image: redis:7

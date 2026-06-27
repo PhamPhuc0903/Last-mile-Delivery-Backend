@@ -21,9 +21,13 @@ jobs:
           - driver-service
           - order-service
           - tracking-service
-          - payment-service
+          - dispatch-service
           - notification-service
           - ai-service
+          - user-service
+          - admin-service
+          - chatbot-service
+          - payment-service
 
     steps:
       - name: Checkout repo

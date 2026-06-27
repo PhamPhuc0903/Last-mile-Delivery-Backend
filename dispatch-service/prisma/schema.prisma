@@ -1,0 +1,49 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  schemas  = ["dispatch"]
+}
+
+model DeliveryAssignment {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  orderId String @map("order_id") @db.Uuid
+
+  driverUserId    String  @map("driver_user_id") @db.Uuid
+  driverProfileId String? @map("driver_profile_id") @db.Uuid
+
+  assignedBy String? @map("assigned_by") @db.Uuid
+
+  status AssignmentStatus @default(PENDING)
+
+  rejectReason String? @map("reject_reason")
+  note         String?
+
+  acceptedAt  DateTime? @map("accepted_at") @db.Timestamp(6)
+  rejectedAt  DateTime? @map("rejected_at") @db.Timestamp(6)
+  cancelledAt DateTime? @map("cancelled_at") @db.Timestamp(6)
+  completedAt DateTime? @map("completed_at") @db.Timestamp(6)
+
+  createdAt DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt DateTime? @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  @@index([orderId])
+  @@index([driverUserId])
+  @@index([status])
+  @@map("delivery_assignments")
+  @@schema("dispatch")
+}
+
+enum AssignmentStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  CANCELLED
+  COMPLETED
+  EXPIRED
+
+  @@schema("dispatch")
+}

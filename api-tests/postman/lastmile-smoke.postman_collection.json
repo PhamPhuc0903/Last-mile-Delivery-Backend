@@ -1,0 +1,410 @@
+{
+  "info": {
+    "_postman_id": "4cdd7cc7-66fd-4f26-a4b0-lastmilesmoke",
+    "name": "Last Mile Delivery - Smoke Test",
+    "description": "Smoke test kiểm tra gateway và health của từng service. Dùng trước khi test full collection.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "00 Setup",
+      "item": [
+        {
+          "name": "Admin Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}/auth/login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"{{adminPhone}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });",
+                  "if (pm.response.code === 200 || pm.response.code === 201) {\n  const json = pm.response.json();\n  const data = json.data || json;\n  const token = data.accessToken || data.token || data?.tokens?.accessToken;\n  const refresh = data.refreshToken || data?.tokens?.refreshToken;\n  const userId = data?.user?.id || data?.id;\n  if (token) pm.environment.set('adminToken', token);\n  if (refresh) pm.environment.set('refreshToken', refresh);\n  if (userId) pm.environment.set('adminId', userId);\n}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Health Checks",
+      "item": [
+        {
+          "name": "Gateway Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}/health"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Health trả 200', function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "pm.test('Response time < 5000ms', function () { pm.expect(pm.response.responseTime).to.be.below(5000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Gateway Root",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/",
+              "host": [
+                "{{baseUrl}}/"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Health trả 200', function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "pm.test('Response time < 5000ms', function () { pm.expect(pm.response.responseTime).to.be.below(5000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Auth Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{authServiceUrl}}/health",
+              "host": [
+                "{{authServiceUrl}}/health"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Health trả 200', function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "pm.test('Response time < 5000ms', function () { pm.expect(pm.response.responseTime).to.be.below(5000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "User Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{userServiceUrl}}/health",
+              "host": [
+                "{{userServiceUrl}}/health"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Health trả 200', function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "pm.test('Response time < 5000ms', function () { pm.expect(pm.response.responseTime).to.be.below(5000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Order Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{orderServiceUrl}}/health",
+              "host": [
+                "{{orderServiceUrl}}/health"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Health trả 200', function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "pm.test('Response time < 5000ms', function () { pm.expect(pm.response.responseTime).to.be.below(5000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Payment Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{paymentServiceUrl}}/health",
+              "host": [
+                "{{paymentServiceUrl}}/health"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Health trả 200', function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "pm.test('Response time < 5000ms', function () { pm.expect(pm.response.responseTime).to.be.below(5000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Driver Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{driverServiceUrl}}/health",
+              "host": [
+                "{{driverServiceUrl}}/health"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Health trả 200', function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "pm.test('Response time < 5000ms', function () { pm.expect(pm.response.responseTime).to.be.below(5000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Dispatch Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{dispatchServiceUrl}}/health",
+              "host": [
+                "{{dispatchServiceUrl}}/health"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Health trả 200', function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "pm.test('Response time < 5000ms', function () { pm.expect(pm.response.responseTime).to.be.below(5000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Tracking Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{trackingServiceUrl}}/health",
+              "host": [
+                "{{trackingServiceUrl}}/health"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Health trả 200', function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "pm.test('Response time < 5000ms', function () { pm.expect(pm.response.responseTime).to.be.below(5000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Notification Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{notificationServiceUrl}}/health",
+              "host": [
+                "{{notificationServiceUrl}}/health"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Health trả 200', function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "pm.test('Response time < 5000ms', function () { pm.expect(pm.response.responseTime).to.be.below(5000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "AI Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{aiServiceUrl}}/health",
+              "host": [
+                "{{aiServiceUrl}}/health"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Health trả 200', function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "pm.test('Response time < 5000ms', function () { pm.expect(pm.response.responseTime).to.be.below(5000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Chatbot Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{chatbotServiceUrl}}/health",
+              "host": [
+                "{{chatbotServiceUrl}}/health"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Health trả 200', function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "pm.test('Response time < 5000ms', function () { pm.expect(pm.response.responseTime).to.be.below(5000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{adminServiceUrl}}/health",
+              "host": [
+                "{{adminServiceUrl}}/health"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Health trả 200', function () { pm.expect(pm.response.code).to.eql(200); });",
+                  "pm.test('Response time < 5000ms', function () { pm.expect(pm.response.responseTime).to.be.below(5000); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin System Health",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/system/health",
+              "host": [
+                "{{baseUrl}}/admin/system/health"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Không lỗi server 5xx/502', function () { pm.expect(pm.response.code).to.not.be.oneOf([500, 502, 503, 504]); });",
+                  "pm.test('Response time < 10000ms', function () { pm.expect(pm.response.responseTime).to.be.below(10000); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

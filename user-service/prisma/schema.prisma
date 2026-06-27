@@ -1,0 +1,41 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  schemas  = ["user_profile"]
+}
+
+model Profile {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String    @unique @map("user_id") @db.Uuid
+  fullName  String?   @map("full_name") @db.VarChar(100)
+  avatarUrl String?   @map("avatar_url")
+  createdAt DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt DateTime? @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  @@map("profiles")
+  @@schema("user_profile")
+}
+
+model Address {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        String    @map("user_id") @db.Uuid
+  label         String?   @db.VarChar(50)
+  receiverName  String?   @map("receiver_name") @db.VarChar(100)
+  receiverPhone String?   @map("receiver_phone") @db.VarChar(20)
+  addressLine   String    @map("address_line")
+  ward          String?   @db.VarChar(100)
+  district      String?   @db.VarChar(100)
+  city          String?   @db.VarChar(100)
+  lat           Float?
+  lng           Float?
+  isDefault     Boolean?  @default(false) @map("is_default")
+  createdAt     DateTime? @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt     DateTime? @default(now()) @map("updated_at") @db.Timestamp(6)
+
+  @@index([userId])
+  @@map("addresses")
+  @@schema("user_profile")
+}
