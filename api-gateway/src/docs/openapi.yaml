@@ -1,0 +1,4517 @@
+openapi: 3.0.3
+
+info:
+  title: Last Mile Delivery API
+  version: 1.0.0
+  description: >
+    API documentation for Last Mile Delivery Backend.
+    The system uses a microservice-lite architecture with API Gateway.
+
+servers:
+  - url: http://localhost:3000
+    description: Local API Gateway
+
+tags:
+  - name: Health
+  - name: Auth
+  - name: Users
+  - name: Orders
+  - name: Payments
+  - name: Drivers
+  - name: Dispatch
+  - name: Tracking
+  - name: Notifications
+  - name: AI
+  - name: Chatbot
+  - name: Admin
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: Validation failed
+
+    ValidationErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: Validation failed
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              path:
+                type: string
+                example: body.phone
+              message:
+                type: string
+                example: Required
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        fullName:
+          type: string
+          example: Admin Test
+        phone:
+          type: string
+          example: "0900000001"
+        email:
+          type: string
+          nullable: true
+          example: admin@test.com
+        role:
+          type: string
+          enum:
+            - ADMIN
+            - CUSTOMER
+            - DRIVER
+          example: ADMIN
+        status:
+          type: string
+          example: ACTIVE
+        createdAt:
+          type: string
+          format: date-time
+
+    RegisterRequest:
+      type: object
+      required:
+        - fullName
+        - phone
+        - password
+      properties:
+        fullName:
+          type: string
+          example: Nguyen Van A
+        phone:
+          type: string
+          example: "0900000004"
+        email:
+          type: string
+          nullable: true
+          example: user@test.com
+        password:
+          type: string
+          example: "123456"
+        role:
+          type: string
+          enum:
+            - CUSTOMER
+            - DRIVER
+          example: CUSTOMER
+
+    LoginRequest:
+      type: object
+      required:
+        - phone
+        - password
+      properties:
+        phone:
+          type: string
+          example: "0900000001"
+        password:
+          type: string
+          example: "123456"
+
+    LoginResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            accessToken:
+              type: string
+            refreshToken:
+              type: string
+            user:
+              $ref: "#/components/schemas/User"
+
+    RefreshTokenRequest:
+      type: object
+      required:
+        - refreshToken
+      properties:
+        refreshToken:
+          type: string
+
+    ChangePasswordRequest:
+      type: object
+      required:
+        - oldPassword
+        - newPassword
+      properties:
+        oldPassword:
+          type: string
+          example: "123456"
+        newPassword:
+          type: string
+          example: "654321"
+
+    ForgotPasswordRequest:
+      type: object
+      properties:
+        phone:
+          type: string
+          example: "0900000001"
+
+    ResetPasswordRequest:
+      type: object
+      required:
+        - resetToken
+        - newPassword
+      properties:
+        resetToken:
+          type: string
+        newPassword:
+          type: string
+          example: "123456"
+
+    Profile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        fullName:
+          type: string
+          nullable: true
+          example: Nguyen Van A
+        email:
+          type: string
+          nullable: true
+          example: customer@test.com
+        avatarUrl:
+          type: string
+          nullable: true
+          example: https://example.com/avatar.png
+        dateOfBirth:
+          type: string
+          nullable: true
+        gender:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    UpdateProfileRequest:
+      type: object
+      properties:
+        fullName:
+          type: string
+          example: Nguyen Van A
+        email:
+          type: string
+          nullable: true
+          example: customer@test.com
+        avatarUrl:
+          type: string
+          nullable: true
+          example: https://example.com/avatar.png
+        dateOfBirth:
+          type: string
+          nullable: true
+          example: "2002-01-01"
+        gender:
+          type: string
+          nullable: true
+          example: MALE
+
+    Address:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        label:
+          type: string
+          nullable: true
+          example: Home
+        receiverName:
+          type: string
+          example: Tran Van B
+        receiverPhone:
+          type: string
+          example: "0912345678"
+        addressLine:
+          type: string
+          example: 25 Le Loi
+        ward:
+          type: string
+          example: Ben Nghe
+        district:
+          type: string
+          example: District 1
+        city:
+          type: string
+          example: Ho Chi Minh City
+        lat:
+          type: number
+          nullable: true
+          example: 10.776889
+        lng:
+          type: number
+          nullable: true
+          example: 106.700806
+        isDefault:
+          type: boolean
+          example: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateAddressRequest:
+      type: object
+      required:
+        - receiverName
+        - receiverPhone
+        - addressLine
+        - ward
+        - district
+        - city
+      properties:
+        label:
+          type: string
+          nullable: true
+          example: Home
+        receiverName:
+          type: string
+          example: Tran Van B
+        receiverPhone:
+          type: string
+          example: "0912345678"
+        addressLine:
+          type: string
+          example: 25 Le Loi
+        ward:
+          type: string
+          example: Ben Nghe
+        district:
+          type: string
+          example: District 1
+        city:
+          type: string
+          example: Ho Chi Minh City
+        lat:
+          type: number
+          nullable: true
+          example: 10.776889
+        lng:
+          type: number
+          nullable: true
+          example: 106.700806
+        isDefault:
+          type: boolean
+          example: true
+
+    UpdateAddressRequest:
+      type: object
+      properties:
+        label:
+          type: string
+          nullable: true
+          example: Office
+        receiverName:
+          type: string
+          example: Tran Van B
+        receiverPhone:
+          type: string
+          example: "0912345678"
+        addressLine:
+          type: string
+          example: 10 Nguyen Hue
+        ward:
+          type: string
+          example: Ben Nghe
+        district:
+          type: string
+          example: District 1
+        city:
+          type: string
+          example: Ho Chi Minh City
+        lat:
+          type: number
+          nullable: true
+          example: 10.776889
+        lng:
+          type: number
+          nullable: true
+          example: 106.700806
+        isDefault:
+          type: boolean
+          example: false
+    OrderItemRequest:
+      type: object
+      required:
+        - itemName
+      properties:
+        itemName:
+          type: string
+          example: Shoes
+        quantity:
+          type: integer
+          example: 1
+        weightKg:
+          type: number
+          nullable: true
+          example: 0.8
+        note:
+          type: string
+          nullable: true
+          example: Fragile item
+
+    OrderItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        orderId:
+          type: string
+          format: uuid
+        itemName:
+          type: string
+          example: Shoes
+        quantity:
+          type: integer
+          example: 1
+        weightKg:
+          type: number
+          nullable: true
+          example: 0.8
+        note:
+          type: string
+          nullable: true
+
+    Order:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        customerId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+            - PENDING
+            - CONFIRMED
+            - ASSIGNED
+            - PICKED_UP
+            - IN_TRANSIT
+            - DELIVERED
+            - CANCELLED
+            - FAILED
+          example: PENDING
+        pickupAddressLine:
+          type: string
+          example: 12 Nguyen Van Cu
+        pickupWard:
+          type: string
+          example: Ward 1
+        pickupDistrict:
+          type: string
+          example: District 5
+        pickupCity:
+          type: string
+          example: Ho Chi Minh City
+        pickupLat:
+          type: number
+          nullable: true
+          example: 10.762622
+        pickupLng:
+          type: number
+          nullable: true
+          example: 106.660172
+        receiverName:
+          type: string
+          example: Tran Van B
+        receiverPhone:
+          type: string
+          example: "0912345678"
+        deliveryAddressLine:
+          type: string
+          example: 25 Le Loi
+        deliveryWard:
+          type: string
+          example: Ben Nghe
+        deliveryDistrict:
+          type: string
+          example: District 1
+        deliveryCity:
+          type: string
+          example: Ho Chi Minh City
+        deliveryLat:
+          type: number
+          nullable: true
+          example: 10.776889
+        deliveryLng:
+          type: number
+          nullable: true
+          example: 106.700806
+        distanceKm:
+          type: number
+          nullable: true
+          example: 5.2
+        shippingFee:
+          type: number
+          example: 41000
+        paymentMethod:
+          type: string
+          enum:
+            - COD
+            - BANK_TRANSFER
+            - MOMO
+            - VNPAY
+          example: COD
+        paymentStatus:
+          type: string
+          enum:
+            - UNPAID
+            - PAID
+            - REFUNDED
+            - FAILED
+          example: UNPAID
+        note:
+          type: string
+          nullable: true
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderItem"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateOrderRequest:
+      type: object
+      required:
+        - pickupAddressLine
+        - receiverName
+        - receiverPhone
+        - deliveryAddressLine
+        - items
+      properties:
+        pickupAddressLine:
+          type: string
+          example: 12 Nguyen Van Cu
+        pickupWard:
+          type: string
+          example: Ward 1
+        pickupDistrict:
+          type: string
+          example: District 5
+        pickupCity:
+          type: string
+          example: Ho Chi Minh City
+        pickupLat:
+          type: number
+          nullable: true
+          example: 10.762622
+        pickupLng:
+          type: number
+          nullable: true
+          example: 106.660172
+        receiverName:
+          type: string
+          example: Tran Van B
+        receiverPhone:
+          type: string
+          example: "0912345678"
+        deliveryAddressLine:
+          type: string
+          example: 25 Le Loi
+        deliveryWard:
+          type: string
+          example: Ben Nghe
+        deliveryDistrict:
+          type: string
+          example: District 1
+        deliveryCity:
+          type: string
+          example: Ho Chi Minh City
+        deliveryLat:
+          type: number
+          nullable: true
+          example: 10.776889
+        deliveryLng:
+          type: number
+          nullable: true
+          example: 106.700806
+        distanceKm:
+          type: number
+          example: 5.2
+        shippingFee:
+          type: number
+          nullable: true
+          example: 41000
+        paymentMethod:
+          type: string
+          enum:
+            - COD
+            - BANK_TRANSFER
+            - MOMO
+            - VNPAY
+          example: COD
+        note:
+          type: string
+          nullable: true
+          example: Please call before delivery
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderItemRequest"
+
+    UpdateOrderRequest:
+      type: object
+      properties:
+        pickupAddressLine:
+          type: string
+          example: 12 Nguyen Van Cu
+        receiverName:
+          type: string
+          example: Tran Van B
+        receiverPhone:
+          type: string
+          example: "0912345678"
+        deliveryAddressLine:
+          type: string
+          example: 25 Le Loi
+        distanceKm:
+          type: number
+          example: 5.2
+        shippingFee:
+          type: number
+          example: 41000
+        paymentMethod:
+          type: string
+          enum:
+            - COD
+            - BANK_TRANSFER
+            - MOMO
+            - VNPAY
+          example: COD
+        note:
+          type: string
+          nullable: true
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderItemRequest"
+
+    CancelOrderRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          example: Customer requested cancellation
+
+    UpdateOrderStatusRequest:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum:
+            - PENDING
+            - CONFIRMED
+            - ASSIGNED
+            - PICKED_UP
+            - IN_TRANSIT
+            - DELIVERED
+            - CANCELLED
+            - FAILED
+          example: CONFIRMED
+        note:
+          type: string
+          nullable: true
+          example: Order confirmed by admin
+
+    PaymentTransaction:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        orderId:
+          type: string
+          format: uuid
+        customerId:
+          type: string
+          format: uuid
+        amount:
+          type: number
+          example: 41000
+        paymentMethod:
+          type: string
+          enum:
+            - COD
+            - BANK_TRANSFER
+            - MOMO
+            - VNPAY
+          example: COD
+        paymentStatus:
+          type: string
+          enum:
+            - UNPAID
+            - PENDING
+            - PAID
+            - FAILED
+            - REFUNDED
+            - CANCELLED
+          example: UNPAID
+        transactionType:
+          type: string
+          enum:
+            - PAYMENT
+            - REFUND
+            - COD_COLLECTION
+          example: COD_COLLECTION
+        providerTransactionId:
+          type: string
+          nullable: true
+        note:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreatePaymentRequest:
+      type: object
+      required:
+        - orderId
+        - amount
+        - paymentMethod
+      properties:
+        orderId:
+          type: string
+          format: uuid
+        amount:
+          type: number
+          example: 41000
+        paymentMethod:
+          type: string
+          enum:
+            - COD
+            - BANK_TRANSFER
+            - MOMO
+            - VNPAY
+          example: COD
+        customerId:
+          type: string
+          format: uuid
+          nullable: true
+        providerTransactionId:
+          type: string
+          nullable: true
+        note:
+          type: string
+          nullable: true
+
+    MarkPaymentPaidRequest:
+      type: object
+      properties:
+        providerTransactionId:
+          type: string
+          nullable: true
+          example: MOMO_123456
+        note:
+          type: string
+          nullable: true
+          example: Payment confirmed by admin
+
+    MarkPaymentFailedRequest:
+      type: object
+      properties:
+        note:
+          type: string
+          nullable: true
+          example: Payment failed from provider
+
+    RefundPaymentRequest:
+      type: object
+      properties:
+        amount:
+          type: number
+          nullable: true
+          example: 41000
+        reason:
+          type: string
+          nullable: true
+          example: Customer requested refund
+    Driver:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        vehicleType:
+          type: string
+          enum:
+            - MOTORBIKE
+            - CAR
+            - VAN
+          example: MOTORBIKE
+        vehiclePlate:
+          type: string
+          nullable: true
+          example: 59A1-12345
+        licenseNumber:
+          type: string
+          nullable: true
+          example: GPLX123456
+        status:
+          type: string
+          enum:
+            - OFFLINE
+            - ONLINE
+            - BUSY
+            - SUSPENDED
+          example: ONLINE
+        verificationStatus:
+          type: string
+          enum:
+            - PENDING
+            - APPROVED
+            - REJECTED
+          example: APPROVED
+        currentLat:
+          type: number
+          nullable: true
+          example: 10.776889
+        currentLng:
+          type: number
+          nullable: true
+          example: 106.700806
+        rating:
+          type: number
+          example: 5
+        totalDeliveries:
+          type: integer
+          example: 10
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    UpdateDriverProfileRequest:
+      type: object
+      properties:
+        vehicleType:
+          type: string
+          enum:
+            - MOTORBIKE
+            - CAR
+            - VAN
+          example: MOTORBIKE
+        vehiclePlate:
+          type: string
+          example: 59A1-12345
+        licenseNumber:
+          type: string
+          example: GPLX123456
+
+    UpdateDriverStatusRequest:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum:
+            - OFFLINE
+            - ONLINE
+            - BUSY
+            - SUSPENDED
+          example: ONLINE
+
+    UpdateDriverLocationRequest:
+      type: object
+      required:
+        - lat
+        - lng
+      properties:
+        lat:
+          type: number
+          example: 10.776889
+        lng:
+          type: number
+          example: 106.700806
+        heading:
+          type: number
+          nullable: true
+          example: 90
+        speed:
+          type: number
+          nullable: true
+          example: 35
+
+    RejectDriverRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          nullable: true
+          example: Missing required documents
+
+    DeliveryAssignment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        orderId:
+          type: string
+          format: uuid
+        driverUserId:
+          type: string
+          format: uuid
+        driverProfileId:
+          type: string
+          format: uuid
+          nullable: true
+        assignedBy:
+          type: string
+          format: uuid
+          nullable: true
+        status:
+          type: string
+          enum:
+            - PENDING
+            - ACCEPTED
+            - REJECTED
+            - CANCELLED
+            - COMPLETED
+            - EXPIRED
+          example: PENDING
+        rejectReason:
+          type: string
+          nullable: true
+        note:
+          type: string
+          nullable: true
+        acceptedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateAssignmentRequest:
+      type: object
+      required:
+        - orderId
+      properties:
+        orderId:
+          type: string
+          format: uuid
+        driverId:
+          type: string
+          format: uuid
+          description: Driver profile id
+        driverProfileId:
+          type: string
+          format: uuid
+          description: Driver profile id
+        driverUserId:
+          type: string
+          format: uuid
+          description: Auth user id of driver
+        note:
+          type: string
+          nullable: true
+          example: Manual assignment by admin
+
+    AutoAssignRequest:
+      type: object
+      required:
+        - orderId
+        - pickupLat
+        - pickupLng
+      properties:
+        orderId:
+          type: string
+          format: uuid
+        pickupLat:
+          type: number
+          example: 10.762622
+        pickupLng:
+          type: number
+          example: 106.660172
+        radiusKm:
+          type: number
+          example: 5
+        maxDistanceKm:
+          type: number
+          example: 5
+
+    RejectAssignmentRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          example: Driver is unavailable
+        rejectReason:
+          type: string
+          example: Driver is unavailable
+
+    CancelAssignmentRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          example: Reassigning to another driver
+        note:
+          type: string
+          example: Reassigning to another driver
+    TrackingLog:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        orderId:
+          type: string
+          format: uuid
+        driverUserId:
+          type: string
+          format: uuid
+          nullable: true
+        driverProfileId:
+          type: string
+          format: uuid
+          nullable: true
+        lat:
+          type: number
+          example: 10.776889
+        lng:
+          type: number
+          example: 106.700806
+        heading:
+          type: number
+          nullable: true
+          example: 90
+        speed:
+          type: number
+          nullable: true
+          example: 35
+        eventType:
+          type: string
+          enum:
+            - LOCATION_UPDATE
+            - PICKED_UP
+            - IN_TRANSIT
+            - DELIVERED
+            - FAILED
+          example: LOCATION_UPDATE
+        note:
+          type: string
+          nullable: true
+        recordedAt:
+          type: string
+          format: date-time
+
+    CreateTrackingLocationRequest:
+      type: object
+      required:
+        - orderId
+        - lat
+        - lng
+      properties:
+        orderId:
+          type: string
+          format: uuid
+        lat:
+          type: number
+          example: 10.776889
+        lng:
+          type: number
+          example: 106.700806
+        heading:
+          type: number
+          nullable: true
+          example: 90
+        speed:
+          type: number
+          nullable: true
+          example: 35
+        eventType:
+          type: string
+          enum:
+            - LOCATION_UPDATE
+            - PICKED_UP
+            - IN_TRANSIT
+            - DELIVERED
+            - FAILED
+          example: LOCATION_UPDATE
+        note:
+          type: string
+          nullable: true
+
+    CreateOrderTrackingLocationRequest:
+      type: object
+      required:
+        - lat
+        - lng
+      properties:
+        lat:
+          type: number
+          example: 10.776889
+        lng:
+          type: number
+          example: 106.700806
+        heading:
+          type: number
+          nullable: true
+          example: 90
+        speed:
+          type: number
+          nullable: true
+          example: 35
+        eventType:
+          type: string
+          enum:
+            - LOCATION_UPDATE
+            - PICKED_UP
+            - IN_TRANSIT
+            - DELIVERED
+            - FAILED
+          example: LOCATION_UPDATE
+        note:
+          type: string
+          nullable: true
+
+    Notification:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        title:
+          type: string
+          example: Order updated
+        message:
+          type: string
+          example: Your order status has changed.
+        type:
+          type: string
+          enum:
+            - ORDER
+            - PAYMENT
+            - DRIVER
+            - DISPATCH
+            - SYSTEM
+            - PROMOTION
+          example: ORDER
+        channel:
+          type: string
+          enum:
+            - IN_APP
+            - EMAIL
+            - SMS
+            - PUSH
+          example: IN_APP
+        status:
+          type: string
+          enum:
+            - UNREAD
+            - READ
+          example: UNREAD
+        metadata:
+          type: object
+          nullable: true
+        readAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateNotificationRequest:
+      type: object
+      required:
+        - userId
+        - title
+        - message
+      properties:
+        userId:
+          type: string
+          format: uuid
+        title:
+          type: string
+          example: Order updated
+        message:
+          type: string
+          example: Your order status has changed.
+        type:
+          type: string
+          enum:
+            - ORDER
+            - PAYMENT
+            - DRIVER
+            - DISPATCH
+            - SYSTEM
+            - PROMOTION
+          example: ORDER
+        channel:
+          type: string
+          enum:
+            - IN_APP
+            - EMAIL
+            - SMS
+            - PUSH
+          example: IN_APP
+        metadata:
+          type: object
+          nullable: true
+
+    CreateBulkNotificationsRequest:
+      type: object
+      required:
+        - userIds
+        - title
+        - message
+      properties:
+        userIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        title:
+          type: string
+          example: System maintenance
+        message:
+          type: string
+          example: The system will be maintained tonight.
+        type:
+          type: string
+          enum:
+            - ORDER
+            - PAYMENT
+            - DRIVER
+            - DISPATCH
+            - SYSTEM
+            - PROMOTION
+          example: SYSTEM
+        channel:
+          type: string
+          enum:
+            - IN_APP
+            - EMAIL
+            - SMS
+            - PUSH
+          example: IN_APP
+        metadata:
+          type: object
+          nullable: true
+    EtaPredictRequest:
+      type: object
+      required:
+        - distanceKm
+      properties:
+        orderId:
+          type: string
+          format: uuid
+          nullable: true
+        distanceKm:
+          type: number
+          example: 5.2
+        averageSpeedKmh:
+          type: number
+          example: 25
+        trafficLevel:
+          type: string
+          enum:
+            - LOW
+            - MEDIUM
+            - HIGH
+          example: MEDIUM
+        pickupHour:
+          type: integer
+          example: 17
+        vehicleType:
+          type: string
+          enum:
+            - MOTORBIKE
+            - CAR
+            - VAN
+          example: MOTORBIKE
+        driverRating:
+          type: number
+          example: 4.8
+        driverTotalDeliveries:
+          type: integer
+          example: 120
+
+    EtaPredictionResponse:
+      type: object
+      properties:
+        estimatedMinutes:
+          type: integer
+          example: 18
+        modelSource:
+          type: string
+          example: trained_model
+        modelName:
+          type: string
+          nullable: true
+          example: ETA_PREDICTION
+        modelVersion:
+          type: string
+          nullable: true
+          example: eta-linear-1710000000000
+        confidence:
+          type: number
+          example: 0.82
+        explanation:
+          type: string
+
+    EtaTrainingSampleRequest:
+      type: object
+      required:
+        - distanceKm
+        - actualMinutes
+      properties:
+        orderId:
+          type: string
+          format: uuid
+          nullable: true
+        distanceKm:
+          type: number
+          example: 5.2
+        averageSpeedKmh:
+          type: number
+          example: 25
+        trafficLevel:
+          type: string
+          enum:
+            - LOW
+            - MEDIUM
+            - HIGH
+          example: MEDIUM
+        pickupHour:
+          type: integer
+          example: 17
+        vehicleType:
+          type: string
+          enum:
+            - MOTORBIKE
+            - CAR
+            - VAN
+          example: MOTORBIKE
+        driverRating:
+          type: number
+          example: 4.8
+        driverTotalDeliveries:
+          type: integer
+          example: 120
+        actualMinutes:
+          type: integer
+          example: 22
+
+    SeedEtaTrainingSamplesRequest:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 50
+
+    RecommendDriverRequest:
+      type: object
+      required:
+        - pickupLat
+        - pickupLng
+      properties:
+        orderId:
+          type: string
+          format: uuid
+          nullable: true
+        pickupLat:
+          type: number
+          example: 10.762622
+        pickupLng:
+          type: number
+          example: 106.660172
+        radiusKm:
+          type: number
+          example: 5
+        drivers:
+          type: array
+          nullable: true
+          items:
+            type: object
+
+    AnomalyDetectionRequest:
+      type: object
+      properties:
+        orderId:
+          type: string
+          format: uuid
+          nullable: true
+        distanceKm:
+          type: number
+          example: 55
+        shippingFee:
+          type: number
+          example: 1200000
+        codAmount:
+          type: number
+          example: 6000000
+        etaMinutes:
+          type: integer
+          example: 190
+        driverDistanceKm:
+          type: number
+          example: 16
+
+    RiskScoreRequest:
+      type: object
+      properties:
+        orderId:
+          type: string
+          format: uuid
+          nullable: true
+        distanceKm:
+          type: number
+          example: 35
+        shippingFee:
+          type: number
+          example: 700000
+        codAmount:
+          type: number
+          example: 3500000
+        etaMinutes:
+          type: integer
+          example: 130
+        driverDistanceKm:
+          type: number
+          example: 11
+
+    ChatSession:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        orderId:
+          type: string
+          format: uuid
+          nullable: true
+        title:
+          type: string
+          nullable: true
+          example: Support order status
+        status:
+          type: string
+          example: ACTIVE
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ChatMessage:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        sessionId:
+          type: string
+          format: uuid
+        sender:
+          type: string
+          enum:
+            - USER
+            - BOT
+          example: USER
+        message:
+          type: string
+          example: Đơn hàng của tôi đang ở đâu?
+        metadata:
+          type: object
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateChatSessionRequest:
+      type: object
+      properties:
+        orderId:
+          type: string
+          format: uuid
+          nullable: true
+        title:
+          type: string
+          nullable: true
+          example: Support order status
+
+    SendChatMessageRequest:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          example: Đơn hàng của tôi đang ở đâu?
+        orderId:
+          type: string
+          format: uuid
+          nullable: true
+    AdminCreateUserRequest:
+      type: object
+      required:
+        - fullName
+        - phone
+        - password
+        - role
+      properties:
+        fullName:
+          type: string
+          example: Admin Created User
+        phone:
+          type: string
+          example: "0900000099"
+        email:
+          type: string
+          nullable: true
+          example: created@test.com
+        password:
+          type: string
+          example: "123456"
+        role:
+          type: string
+          enum:
+            - ADMIN
+            - CUSTOMER
+            - DRIVER
+          example: CUSTOMER
+
+    AdminUpdateUserRequest:
+      type: object
+      properties:
+        fullName:
+          type: string
+          example: Updated User
+        phone:
+          type: string
+          example: "0900000099"
+        email:
+          type: string
+          nullable: true
+          example: updated@test.com
+        role:
+          type: string
+          enum:
+            - ADMIN
+            - CUSTOMER
+            - DRIVER
+          example: CUSTOMER
+        status:
+          type: string
+          enum:
+            - ACTIVE
+            - BLOCKED
+            - DELETED
+          example: ACTIVE
+
+    AdminUpdateDriverStatusRequest:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum:
+            - OFFLINE
+            - ONLINE
+            - BUSY
+            - SUSPENDED
+          example: SUSPENDED
+
+paths:
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Check API Gateway health
+      responses:
+        "200":
+          description: Gateway is running
+
+  /auth/register:
+    post:
+      tags:
+        - Auth
+      summary: Register a new customer or driver account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: Registered successfully
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationErrorResponse"
+        "409":
+          description: Phone or email already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/login:
+    post:
+      tags:
+        - Auth
+      summary: Login with phone and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Login successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "400":
+          description: Missing phone or password
+        "401":
+          description: Invalid credentials
+        "403":
+          description: User account is not active
+
+  /auth/refresh-token:
+    post:
+      tags:
+        - Auth
+      summary: Generate a new access token from refresh token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshTokenRequest"
+      responses:
+        "200":
+          description: New access token generated
+        "400":
+          description: Refresh token is required
+        "401":
+          description: Invalid refresh token
+
+  /auth/me:
+    get:
+      tags:
+        - Auth
+      summary: Get current authenticated user
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Current user information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/User"
+        "401":
+          description: Unauthorized
+        "404":
+          description: User not found
+
+  /auth/logout:
+    post:
+      tags:
+        - Auth
+      summary: Logout current user
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Logout successfully
+        "401":
+          description: Unauthorized
+
+  /auth/change-password:
+    patch:
+      tags:
+        - Auth
+      summary: Change current user's password
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePasswordRequest"
+      responses:
+        "200":
+          description: Password changed successfully
+        "400":
+          description: Invalid password data
+        "401":
+          description: Unauthorized
+        "403":
+          description: User account is not active
+        "404":
+          description: User not found
+
+  /auth/forgot-password:
+    post:
+      tags:
+        - Auth
+      summary: Generate reset password token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ForgotPasswordRequest"
+      responses:
+        "200":
+          description: Reset token generated
+        "400":
+          description: phone or email is required
+        "403":
+          description: User account is not active
+        "404":
+          description: User not found
+
+  /auth/reset-password:
+    post:
+      tags:
+        - Auth
+      summary: Reset password by reset token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResetPasswordRequest"
+      responses:
+        "200":
+          description: Password reset successfully
+        "400":
+          description: Invalid input
+        "401":
+          description: Invalid reset token
+        "403":
+          description: User account is not active
+        "404":
+          description: User not found
+
+  /auth/admin-test:
+    get:
+      tags:
+        - Auth
+      summary: Test admin-only route
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Admin access granted
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin role required
+
+  /users/me:
+    get:
+      tags:
+        - Users
+      summary: Get current user profile
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Current user profile
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: "#/components/schemas/Profile"
+        "401":
+          description: Unauthorized
+
+    patch:
+      tags:
+        - Users
+      summary: Update current user profile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProfileRequest"
+      responses:
+        "200":
+          description: Profile updated successfully
+        "400":
+          description: Invalid input
+        "401":
+          description: Unauthorized
+
+  /users/me/addresses:
+    get:
+      tags:
+        - Users
+      summary: Get current user's addresses
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Address list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Address"
+        "401":
+          description: Unauthorized
+
+    post:
+      tags:
+        - Users
+      summary: Create a new address for current user
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAddressRequest"
+      responses:
+        "201":
+          description: Address created successfully
+        "400":
+          description: Invalid input
+        "401":
+          description: Unauthorized
+
+  /users/me/addresses/{id}:
+    get:
+      tags:
+        - Users
+      summary: Get address by id
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Address detail
+        "401":
+          description: Unauthorized
+        "404":
+          description: Address not found
+
+    patch:
+      tags:
+        - Users
+      summary: Update address by id
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateAddressRequest"
+      responses:
+        "200":
+          description: Address updated successfully
+        "400":
+          description: Invalid input
+        "401":
+          description: Unauthorized
+        "404":
+          description: Address not found
+
+    delete:
+      tags:
+        - Users
+      summary: Delete address by id
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Address deleted successfully
+        "401":
+          description: Unauthorized
+        "404":
+          description: Address not found
+  /orders:
+    post:
+      tags:
+        - Orders
+      summary: Create a new order
+      description: CUSTOMER or ADMIN can create an order.
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOrderRequest"
+      responses:
+        "201":
+          description: Order created successfully
+        "400":
+          description: Invalid order data
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+
+    get:
+      tags:
+        - Orders
+      summary: Get all orders
+      description: ADMIN only.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            example: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            example: 10
+        - name: status
+          in: query
+          schema:
+            type: string
+            example: PENDING
+        - name: customerId
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Order list
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin role required
+
+  /orders/my-orders:
+    get:
+      tags:
+        - Orders
+      summary: Get current customer's orders
+      description: CUSTOMER or ADMIN.
+      security:
+        - bearerAuth: [ ]
+      responses:
+        "200":
+          description: Current user's orders
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+
+  /orders/{id}:
+    get:
+      tags:
+        - Orders
+      summary: Get order by id
+      description: ADMIN can access all orders. CUSTOMER can access own orders. DRIVER can access assigned orders.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Order detail
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Order not found
+
+    patch:
+      tags:
+        - Orders
+      summary: Update order information
+      description: CUSTOMER can update own PENDING/CONFIRMED orders. ADMIN can update allowed orders.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateOrderRequest"
+      responses:
+        "200":
+          description: Order updated successfully
+        "400":
+          description: Invalid order data
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Order not found
+
+  /orders/{id}/cancel:
+    patch:
+      tags:
+        - Orders
+      summary: Cancel order
+      description: CUSTOMER can cancel own PENDING/CONFIRMED orders. ADMIN can cancel allowed orders.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CancelOrderRequest"
+      responses:
+        "200":
+          description: Order cancelled successfully
+        "400":
+          description: Order cannot be cancelled
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Order not found
+
+  /orders/{id}/status:
+    patch:
+      tags:
+        - Orders
+      summary: Update order status
+      description: ADMIN only.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateOrderStatusRequest"
+      responses:
+        "200":
+          description: Order status updated
+        "400":
+          description: Invalid status
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin role required
+        "404":
+          description: Order not found
+
+  /orders/{id}/timeline:
+    get:
+      tags:
+        - Orders
+      summary: Get order status timeline
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Order timeline
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Order not found
+
+  /orders/stats/today:
+    get:
+      tags:
+        - Orders
+      summary: Get today's order statistics
+      description: ADMIN only.
+      security:
+        - bearerAuth: [ ]
+      responses:
+        "200":
+          description: Today's order statistics
+        "403":
+          description: Admin role required
+
+  /orders/stats/month:
+    get:
+      tags:
+        - Orders
+      summary: Get current month's order statistics
+      description: ADMIN only.
+      security:
+        - bearerAuth: [ ]
+      responses:
+        "200":
+          description: Monthly order statistics
+        "403":
+          description: Admin role required
+
+  /orders/stats/year:
+    get:
+      tags:
+        - Orders
+      summary: Get current year's order statistics
+      description: ADMIN only.
+      security:
+        - bearerAuth: [ ]
+      responses:
+        "200":
+          description: Yearly order statistics
+        "403":
+          description: Admin role required
+
+  /payments:
+    post:
+      tags:
+        - Payments
+      summary: Create payment transaction
+      description: CUSTOMER can create payment for own order. ADMIN can create payment for valid order.
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePaymentRequest"
+      responses:
+        "201":
+          description: Payment created successfully
+        "400":
+          description: Invalid payment data
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Order not found
+
+  /payments/my-payments:
+    get:
+      tags:
+        - Payments
+      summary: Get current user's payments
+      security:
+        - bearerAuth: [ ]
+      responses:
+        "200":
+          description: Current user's payment transactions
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+
+  /payments/{id}:
+    get:
+      tags:
+        - Payments
+      summary: Get payment by id
+      description: ADMIN can access all payments. CUSTOMER can access own payments.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Payment detail
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Payment not found
+
+  /payments/order/{orderId}:
+    get:
+      tags:
+        - Payments
+      summary: Get payments by order id
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Payment transactions of the order
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Order not found
+
+  /payments/{id}/paid:
+    patch:
+      tags:
+        - Payments
+      summary: Mark payment as paid
+      description: ADMIN only.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MarkPaymentPaidRequest"
+      responses:
+        "200":
+          description: Payment marked as paid
+        "400":
+          description: Payment cannot be marked as paid
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin role required
+        "404":
+          description: Payment not found
+
+  /payments/{id}/failed:
+    patch:
+      tags:
+        - Payments
+      summary: Mark payment as failed
+      description: ADMIN only.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MarkPaymentFailedRequest"
+      responses:
+        "200":
+          description: Payment marked as failed
+        "400":
+          description: Payment cannot be marked as failed
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin role required
+        "404":
+          description: Payment not found
+
+  /payments/{id}/refund:
+    post:
+      tags:
+        - Payments
+      summary: Refund payment
+      description: ADMIN only.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefundPaymentRequest"
+      responses:
+        "200":
+          description: Payment refunded successfully
+        "400":
+          description: Payment cannot be refunded
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin role required
+        "404":
+          description: Payment not found
+  /drivers/me:
+    get:
+      tags:
+        - Drivers
+      summary: Get current driver profile
+      description: DRIVER only.
+      security:
+        - bearerAuth: [ ]
+      responses:
+        "200":
+          description: Current driver profile
+        "401":
+          description: Unauthorized
+        "403":
+          description: Driver role required
+
+    patch:
+      tags:
+        - Drivers
+      summary: Update current driver profile
+      description: DRIVER only.
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateDriverProfileRequest"
+      responses:
+        "200":
+          description: Driver profile updated
+        "400":
+          description: Invalid driver data
+        "401":
+          description: Unauthorized
+        "403":
+          description: Driver role required
+
+  /drivers/me/status:
+    patch:
+      tags:
+        - Drivers
+      summary: Update current driver's status
+      description: DRIVER only.
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateDriverStatusRequest"
+      responses:
+        "200":
+          description: Driver status updated
+        "400":
+          description: Invalid status
+        "401":
+          description: Unauthorized
+        "403":
+          description: Driver role required
+
+  /drivers/me/location:
+    post:
+      tags:
+        - Drivers
+      summary: Update current driver's location
+      description: DRIVER only.
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateDriverLocationRequest"
+      responses:
+        "200":
+          description: Driver location updated
+        "400":
+          description: Invalid location
+        "401":
+          description: Unauthorized
+        "403":
+          description: Driver role required
+
+    patch:
+      tags:
+        - Drivers
+      summary: Update current driver's location
+      description: DRIVER only.
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateDriverLocationRequest"
+      responses:
+        "200":
+          description: Driver location updated
+        "400":
+          description: Invalid location
+        "401":
+          description: Unauthorized
+        "403":
+          description: Driver role required
+
+  /drivers:
+    get:
+      tags:
+        - Drivers
+      summary: Get driver list
+      description: ADMIN only.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            example: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            example: 10
+        - name: status
+          in: query
+          schema:
+            type: string
+            example: ONLINE
+        - name: verificationStatus
+          in: query
+          schema:
+            type: string
+            example: APPROVED
+      responses:
+        "200":
+          description: Driver list
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin role required
+
+  /drivers/nearby:
+    get:
+      tags:
+        - Drivers
+      summary: Get nearby online drivers
+      description: ADMIN only.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          schema:
+            type: number
+            example: 10.762622
+        - name: lng
+          in: query
+          required: true
+          schema:
+            type: number
+            example: 106.660172
+        - name: radiusKm
+          in: query
+          schema:
+            type: number
+            example: 5
+      responses:
+        "200":
+          description: Nearby drivers
+        "400":
+          description: Invalid location
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin role required
+
+  /drivers/{id}:
+    get:
+      tags:
+        - Drivers
+      summary: Get driver by id
+      description: ADMIN only.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Driver detail
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin role required
+        "404":
+          description: Driver not found
+
+  /drivers/{id}/approve:
+    patch:
+      tags:
+        - Drivers
+      summary: Approve driver profile
+      description: ADMIN only.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Driver approved
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin role required
+        "404":
+          description: Driver not found
+
+  /drivers/{id}/reject:
+    patch:
+      tags:
+        - Drivers
+      summary: Reject driver profile
+      description: ADMIN only.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RejectDriverRequest"
+      responses:
+        "200":
+          description: Driver rejected
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin role required
+        "404":
+          description: Driver not found
+
+  /dispatch/assign:
+    post:
+      tags:
+        - Dispatch
+      summary: Create manual delivery assignment
+      description: ADMIN only. Alias of /dispatch/assignments.
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAssignmentRequest"
+      responses:
+        "201":
+          description: Assignment created
+        "400":
+          description: Invalid assignment data
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin role required
+        "404":
+          description: Order or driver not found
+
+  /dispatch/auto-assign:
+    post:
+      tags:
+        - Dispatch
+      summary: Auto assign nearest available driver
+      description: ADMIN only. Alias of /dispatch/assignments/auto.
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AutoAssignRequest"
+      responses:
+        "201":
+          description: Assignment created
+        "400":
+          description: Cannot auto assign
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin role required
+        "404":
+          description: No candidate drivers found
+
+  /dispatch/history:
+    get:
+      tags:
+        - Dispatch
+      summary: Get assignment history
+      description: ADMIN only. Alias of /dispatch/assignments.
+      security:
+        - bearerAuth: [ ]
+      responses:
+        "200":
+          description: Assignment history
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin role required
+
+  /dispatch/assignments:
+    post:
+      tags:
+        - Dispatch
+      summary: Create manual delivery assignment
+      description: ADMIN only.
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAssignmentRequest"
+      responses:
+        "201":
+          description: Assignment created
+        "400":
+          description: Invalid assignment data
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin role required
+        "404":
+          description: Order or driver not found
+
+    get:
+      tags:
+        - Dispatch
+      summary: Get assignment list
+      description: ADMIN only.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            example: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            example: 10
+        - name: status
+          in: query
+          schema:
+            type: string
+            example: PENDING
+      responses:
+        "200":
+          description: Assignment list
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin role required
+
+  /dispatch/assignments/auto:
+    post:
+      tags:
+        - Dispatch
+      summary: Auto assign nearest available driver
+      description: ADMIN only.
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AutoAssignRequest"
+      responses:
+        "201":
+          description: Assignment created
+        "400":
+          description: Cannot auto assign
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin role required
+        "404":
+          description: No candidate drivers found
+
+  /dispatch/my-assignments:
+    get:
+      tags:
+        - Dispatch
+      summary: Get current driver's assignments
+      description: DRIVER only.
+      security:
+        - bearerAuth: [ ]
+      responses:
+        "200":
+          description: Current driver's assignments
+        "401":
+          description: Unauthorized
+        "403":
+          description: Driver role required
+
+  /dispatch/my-current-assignment:
+    get:
+      tags:
+        - Dispatch
+      summary: Get current driver's active assignment
+      description: DRIVER only.
+      security:
+        - bearerAuth: [ ]
+      responses:
+        "200":
+          description: Current assignment
+        "401":
+          description: Unauthorized
+        "403":
+          description: Driver role required
+
+  /dispatch/my-history:
+    get:
+      tags:
+        - Dispatch
+      summary: Get current driver's assignment history
+      description: DRIVER only.
+      security:
+        - bearerAuth: [ ]
+      responses:
+        "200":
+          description: Driver assignment history
+        "401":
+          description: Unauthorized
+        "403":
+          description: Driver role required
+
+  /dispatch/assignments/{id}:
+    get:
+      tags:
+        - Dispatch
+      summary: Get assignment by id
+      description: ADMIN only.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Assignment detail
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin role required
+        "404":
+          description: Assignment not found
+
+  /dispatch/assignments/{id}/accept:
+    patch:
+      tags:
+        - Dispatch
+      summary: Accept assignment
+      description: DRIVER only.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Assignment accepted
+        "400":
+          description: Assignment cannot be accepted
+        "401":
+          description: Unauthorized
+        "403":
+          description: Driver role required
+        "404":
+          description: Assignment not found
+
+  /dispatch/assignments/{id}/reject:
+    patch:
+      tags:
+        - Dispatch
+      summary: Reject assignment
+      description: DRIVER only.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RejectAssignmentRequest"
+      responses:
+        "200":
+          description: Assignment rejected
+        "400":
+          description: Assignment cannot be rejected
+        "401":
+          description: Unauthorized
+        "403":
+          description: Driver role required
+        "404":
+          description: Assignment not found
+
+  /dispatch/assignments/{id}/cancel:
+    patch:
+      tags:
+        - Dispatch
+      summary: Cancel assignment
+      description: ADMIN only.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CancelAssignmentRequest"
+      responses:
+        "200":
+          description: Assignment cancelled
+        "400":
+          description: Assignment cannot be cancelled
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin role required
+        "404":
+          description: Assignment not found
+
+  /dispatch/assignments/{id}/complete:
+    patch:
+      tags:
+        - Dispatch
+      summary: Complete assignment
+      description: DRIVER owner or ADMIN.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Assignment completed
+        "400":
+          description: Assignment cannot be completed
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Assignment not found
+  /tracking/location:
+    post:
+      tags:
+        - Tracking
+      summary: Create tracking location log
+      description: DRIVER or ADMIN.
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTrackingLocationRequest"
+      responses:
+        "201":
+          description: Tracking log created
+        "400":
+          description: Invalid tracking data
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Order not found
+
+  /tracking/orders/{orderId}/location:
+    post:
+      tags:
+        - Tracking
+      summary: Create tracking location log for order
+      description: DRIVER or ADMIN.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOrderTrackingLocationRequest"
+      responses:
+        "201":
+          description: Tracking log created
+        "400":
+          description: Invalid tracking data
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Order not found
+
+  /tracking/orders/{orderId}:
+    get:
+      tags:
+        - Tracking
+      summary: Get current location of order
+      description: CUSTOMER owner, assigned DRIVER, or ADMIN.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Current tracking location
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: No tracking data found
+
+  /tracking/orders/{orderId}/current:
+    get:
+      tags:
+        - Tracking
+      summary: Get current location of order
+      description: CUSTOMER owner, assigned DRIVER, or ADMIN.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Current tracking location
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: No tracking data found
+
+  /tracking/orders/{orderId}/history:
+    get:
+      tags:
+        - Tracking
+      summary: Get tracking history of order
+      description: CUSTOMER owner, assigned DRIVER, or ADMIN.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: page
+          in: query
+          schema:
+            type: integer
+            example: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            example: 50
+        - name: eventType
+          in: query
+          schema:
+            type: string
+            enum:
+              - LOCATION_UPDATE
+              - PICKED_UP
+              - IN_TRANSIT
+              - DELIVERED
+              - FAILED
+      responses:
+        "200":
+          description: Tracking history
+        "400":
+          description: Invalid event type
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Order not found
+
+  /tracking/orders/{orderId}/route:
+    get:
+      tags:
+        - Tracking
+      summary: Get tracking route points of order
+      description: CUSTOMER owner, assigned DRIVER, or ADMIN.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Tracking route points
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Order not found
+
+  /notifications:
+    post:
+      tags:
+        - Notifications
+      summary: Create notification
+      description: ADMIN only.
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateNotificationRequest"
+      responses:
+        "201":
+          description: Notification created
+        "400":
+          description: Invalid notification data
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin role required
+
+    get:
+      tags:
+        - Notifications
+      summary: Get my notifications
+      description: CUSTOMER, DRIVER, or ADMIN.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            example: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            example: 10
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum:
+              - UNREAD
+              - READ
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum:
+              - ORDER
+              - PAYMENT
+              - DRIVER
+              - DISPATCH
+              - SYSTEM
+              - PROMOTION
+      responses:
+        "200":
+          description: My notifications
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+
+  /notifications/push:
+    post:
+      tags:
+        - Notifications
+      summary: Push notification
+      description: ADMIN only. Alias of create notification.
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateNotificationRequest"
+      responses:
+        "201":
+          description: Notification pushed
+        "400":
+          description: Invalid notification data
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin role required
+
+  /notifications/bulk:
+    post:
+      tags:
+        - Notifications
+      summary: Create bulk notifications
+      description: ADMIN only.
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBulkNotificationsRequest"
+      responses:
+        "201":
+          description: Bulk notifications created
+        "400":
+          description: Invalid notification data
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin role required
+
+  /notifications/broadcast:
+    post:
+      tags:
+        - Notifications
+      summary: Broadcast notifications
+      description: ADMIN only. Same request format as bulk notifications.
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBulkNotificationsRequest"
+      responses:
+        "201":
+          description: Notifications broadcasted
+        "400":
+          description: Invalid notification data
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin role required
+
+  /notifications/me:
+    get:
+      tags:
+        - Notifications
+      summary: Get my notifications
+      description: CUSTOMER, DRIVER, or ADMIN.
+      security:
+        - bearerAuth: [ ]
+      responses:
+        "200":
+          description: My notifications
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+
+  /notifications/me/unread-count:
+    get:
+      tags:
+        - Notifications
+      summary: Get unread notification count
+      description: CUSTOMER, DRIVER, or ADMIN.
+      security:
+        - bearerAuth: [ ]
+      responses:
+        "200":
+          description: Unread notification count
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+
+  /notifications/me/read-all:
+    patch:
+      tags:
+        - Notifications
+      summary: Mark all my notifications as read
+      description: CUSTOMER, DRIVER, or ADMIN.
+      security:
+        - bearerAuth: [ ]
+      responses:
+        "200":
+          description: All notifications marked as read
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+
+  /notifications/{id}:
+    get:
+      tags:
+        - Notifications
+      summary: Get notification by id
+      description: User can access own notification. ADMIN can access any notification.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Notification detail
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Notification not found
+
+    delete:
+      tags:
+        - Notifications
+      summary: Delete notification by id
+      description: User can delete own notification. ADMIN can delete any notification.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Notification deleted
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Notification not found
+
+  /notifications/{id}/read:
+    patch:
+      tags:
+        - Notifications
+      summary: Mark notification as read
+      description: User can mark own notification. ADMIN can mark any notification.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Notification marked as read
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Notification not found
+  /ai/recommend-driver:
+    post:
+      tags:
+        - AI
+      summary: Recommend best driver for an order
+      description: ADMIN only.
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecommendDriverRequest"
+      responses:
+        "200":
+          description: Recommended driver result
+        "400":
+          description: Invalid input or cannot get nearby drivers
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin role required
+        "404":
+          description: No candidate drivers found
+
+  /ai/eta:
+    post:
+      tags:
+        - AI
+      summary: Predict ETA
+      description: ADMIN, CUSTOMER, or DRIVER.
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EtaPredictRequest"
+      responses:
+        "200":
+          description: ETA prediction
+        "400":
+          description: Invalid input
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+
+  /ai/predict-eta:
+    post:
+      tags:
+        - AI
+      summary: Predict ETA
+      description: Alias of /ai/eta.
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EtaPredictRequest"
+      responses:
+        "200":
+          description: ETA prediction
+        "400":
+          description: Invalid input
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+
+  /ai/eta/predict:
+    post:
+      tags:
+        - AI
+      summary: Predict ETA
+      description: Alias of /ai/eta.
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EtaPredictRequest"
+      responses:
+        "200":
+          description: ETA prediction
+        "400":
+          description: Invalid input
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+
+  /ai/eta/training-samples:
+    post:
+      tags:
+        - AI
+      summary: Create ETA training sample
+      description: ADMIN only.
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EtaTrainingSampleRequest"
+      responses:
+        "201":
+          description: Training sample created
+        "400":
+          description: Invalid training sample
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin role required
+
+  /ai/eta/training-samples/seed:
+    post:
+      tags:
+        - AI
+      summary: Seed random ETA training samples
+      description: ADMIN only.
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SeedEtaTrainingSamplesRequest"
+      responses:
+        "201":
+          description: Training samples generated
+        "400":
+          description: Invalid input
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin role required
+
+  /ai/eta/train:
+    post:
+      tags:
+        - AI
+      summary: Train ETA model
+      description: ADMIN only. Requires at least 10 ETA training samples.
+      security:
+        - bearerAuth: [ ]
+      responses:
+        "200":
+          description: ETA model trained successfully
+        "400":
+          description: Not enough training samples
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin role required
+
+  /ai/eta/model:
+    get:
+      tags:
+        - AI
+      summary: Get active ETA model
+      description: ADMIN only.
+      security:
+        - bearerAuth: [ ]
+      responses:
+        "200":
+          description: Active ETA model
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin role required
+        "404":
+          description: No active ETA model found
+
+  /ai/anomaly-detection:
+    post:
+      tags:
+        - AI
+      summary: Detect order anomaly
+      description: ADMIN only.
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnomalyDetectionRequest"
+      responses:
+        "200":
+          description: Anomaly detection result
+        "400":
+          description: Invalid input
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin role required
+
+  /ai/detect-anomaly:
+    post:
+      tags:
+        - AI
+      summary: Detect order anomaly
+      description: Alias of /ai/anomaly-detection.
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnomalyDetectionRequest"
+      responses:
+        "200":
+          description: Anomaly detection result
+        "400":
+          description: Invalid input
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin role required
+
+  /ai/risk-score:
+    post:
+      tags:
+        - AI
+      summary: Calculate delivery risk score with optional LLM analysis
+      description: ADMIN only. If OPENAI_API_KEY is not configured, the service returns fallback rule-based analysis.
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RiskScoreRequest"
+      responses:
+        "200":
+          description: Risk score calculated
+        "400":
+          description: Invalid input
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin role required
+
+  /ai/logs/recommendations:
+    get:
+      tags:
+        - AI
+      summary: Get driver recommendation logs
+      description: ADMIN only.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            example: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            example: 10
+        - name: orderId
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Recommendation logs
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin role required
+
+  /ai/logs/etas:
+    get:
+      tags:
+        - AI
+      summary: Get ETA prediction logs
+      description: ADMIN only.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            example: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            example: 10
+        - name: orderId
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: ETA logs
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin role required
+
+  /ai/logs/anomalies:
+    get:
+      tags:
+        - AI
+      summary: Get anomaly logs
+      description: ADMIN only.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            example: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            example: 10
+        - name: orderId
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Anomaly logs
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin role required
+
+  /chatbot/session:
+    post:
+      tags:
+        - Chatbot
+      summary: Create chat session
+      description: CUSTOMER, DRIVER, or ADMIN.
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateChatSessionRequest"
+      responses:
+        "201":
+          description: Chat session created
+        "400":
+          description: Invalid session data
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+
+  /chatbot/sessions:
+    post:
+      tags:
+        - Chatbot
+      summary: Create chat session
+      description: Alias of /chatbot/session.
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateChatSessionRequest"
+      responses:
+        "201":
+          description: Chat session created
+        "400":
+          description: Invalid session data
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+
+    get:
+      tags:
+        - Chatbot
+      summary: Get my chat sessions
+      description: CUSTOMER, DRIVER, or ADMIN.
+      security:
+        - bearerAuth: [ ]
+      responses:
+        "200":
+          description: My chat sessions
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+
+  /chatbot/history:
+    get:
+      tags:
+        - Chatbot
+      summary: Get my chat sessions
+      description: Alias of /chatbot/sessions.
+      security:
+        - bearerAuth: [ ]
+      responses:
+        "200":
+          description: My chat sessions
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+
+  /chatbot/suggestions:
+    get:
+      tags:
+        - Chatbot
+      summary: Get suggested chatbot questions
+      description: CUSTOMER, DRIVER, or ADMIN.
+      security:
+        - bearerAuth: [ ]
+      responses:
+        "200":
+          description: Suggested questions
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+
+  /chatbot/ask:
+    post:
+      tags:
+        - Chatbot
+      summary: Send chatbot message without existing session
+      description: CUSTOMER, DRIVER, or ADMIN. The system creates a temporary/new session if needed.
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendChatMessageRequest"
+      responses:
+        "200":
+          description: Chatbot answer
+        "400":
+          description: Message is required
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+
+  /chatbot/message:
+    post:
+      tags:
+        - Chatbot
+      summary: Send chatbot message without existing session
+      description: Alias of /chatbot/ask.
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendChatMessageRequest"
+      responses:
+        "200":
+          description: Chatbot answer
+        "400":
+          description: Message is required
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+
+  /chatbot/session/{id}/messages:
+    get:
+      tags:
+        - Chatbot
+      summary: Get chat session messages
+      description: User can access own session only.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Chat session messages
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Chat session not found
+
+  /chatbot/sessions/{id}:
+    get:
+      tags:
+        - Chatbot
+      summary: Get chat session detail and messages
+      description: User can access own session only.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Chat session detail
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Chat session not found
+
+  /chatbot/sessions/{id}/messages:
+    post:
+      tags:
+        - Chatbot
+      summary: Send message to existing chat session
+      description: User can send message to own active session only.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendChatMessageRequest"
+      responses:
+        "200":
+          description: Chatbot answer
+        "400":
+          description: Invalid message or session closed
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Chat session not found
+
+  /chatbot/sessions/{id}/close:
+    patch:
+      tags:
+        - Chatbot
+      summary: Close chat session
+      description: User can close own session only.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Chat session closed
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+        "404":
+          description: Chat session not found
+  /admin/dashboard:
+    get:
+      tags:
+        - Admin
+      summary: Get admin dashboard statistics
+      description: ADMIN only.
+      security:
+        - bearerAuth: [ ]
+      responses:
+        "200":
+          description: Dashboard statistics
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin role required
+
+  /admin/system/health:
+    get:
+      tags:
+        - Admin
+      summary: Check health of all backend services
+      description: ADMIN only.
+      security:
+        - bearerAuth: [ ]
+      responses:
+        "200":
+          description: System health summary
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin role required
+
+  /admin/users:
+    get:
+      tags:
+        - Admin
+      summary: Get user list
+      description: ADMIN only.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            example: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            example: 10
+        - name: role
+          in: query
+          schema:
+            type: string
+            enum:
+              - ADMIN
+              - CUSTOMER
+              - DRIVER
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum:
+              - ACTIVE
+              - BLOCKED
+              - DELETED
+        - name: search
+          in: query
+          schema:
+            type: string
+            example: "0900000001"
+      responses:
+        "200":
+          description: User list
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin role required
+
+    post:
+      tags:
+        - Admin
+      summary: Create user by admin
+      description: ADMIN only.
+      security:
+        - bearerAuth: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminCreateUserRequest"
+      responses:
+        "201":
+          description: User created
+        "400":
+          description: Invalid user data
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin role required
+        "409":
+          description: Phone or email already exists
+
+  /admin/users/{id}:
+    get:
+      tags:
+        - Admin
+      summary: Get user by id
+      description: ADMIN only.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: User detail
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin role required
+        "404":
+          description: User not found
+
+    patch:
+      tags:
+        - Admin
+      summary: Update user by id
+      description: ADMIN only.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminUpdateUserRequest"
+      responses:
+        "200":
+          description: User updated
+        "400":
+          description: Invalid user data
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin role required
+        "404":
+          description: User not found
+        "409":
+          description: Phone or email already exists
+
+    delete:
+      tags:
+        - Admin
+      summary: Soft delete user by id
+      description: ADMIN only. This sets user status to DELETED.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: User soft deleted
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin role required
+        "404":
+          description: User not found
+
+  /admin/users/{id}/block:
+    patch:
+      tags:
+        - Admin
+      summary: Block user by id
+      description: ADMIN only.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: User blocked
+        "400":
+          description: User cannot be blocked
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin role required
+        "404":
+          description: User not found
+
+  /admin/users/{id}/unblock:
+    patch:
+      tags:
+        - Admin
+      summary: Unblock user by id
+      description: ADMIN only.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: User unblocked
+        "400":
+          description: User cannot be unblocked
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin role required
+        "404":
+          description: User not found
+
+  /admin/orders:
+    get:
+      tags:
+        - Admin
+      summary: Get all orders for admin
+      description: ADMIN only.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            example: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            example: 10
+      responses:
+        "200":
+          description: Admin order list
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin role required
+
+  /admin/orders/{id}:
+    get:
+      tags:
+        - Admin
+      summary: Get order detail for admin
+      description: ADMIN only. Includes items, timeline, payments, tracking logs, and assignments.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Admin order detail
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin role required
+        "404":
+          description: Order not found
+
+  /admin/drivers:
+    get:
+      tags:
+        - Admin
+      summary: Get all driver profiles for admin
+      description: ADMIN only.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            example: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            example: 10
+      responses:
+        "200":
+          description: Admin driver list
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin role required
+
+  /admin/drivers/{id}:
+    get:
+      tags:
+        - Admin
+      summary: Get driver detail for admin
+      description: ADMIN only. Includes recent locations and recent assignments.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Admin driver detail
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin role required
+        "404":
+          description: Driver not found
+
+  /admin/drivers/{id}/status:
+    patch:
+      tags:
+        - Admin
+      summary: Update driver status by admin
+      description: ADMIN only.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminUpdateDriverStatusRequest"
+      responses:
+        "200":
+          description: Driver status updated
+        "400":
+          description: Invalid driver status
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin role required
+        "404":
+          description: Driver not found
+
+  /admin/payments:
+    get:
+      tags:
+        - Admin
+      summary: Get all payments for admin
+      description: ADMIN only.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            example: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            example: 10
+      responses:
+        "200":
+          description: Admin payment list
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin role required
+
+  /admin/ai/recommendations:
+    get:
+      tags:
+        - Admin
+      summary: Get AI driver recommendation logs for admin
+      description: ADMIN only.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            example: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            example: 10
+      responses:
+        "200":
+          description: AI recommendation logs
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin role required
+
+  /admin/ai/anomalies:
+    get:
+      tags:
+        - Admin
+      summary: Get AI anomaly logs for admin
+      description: ADMIN only.
+      security:
+        - bearerAuth: [ ]
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            example: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            example: 10
+      responses:
+        "200":
+          description: AI anomaly logs
+        "401":
+          description: Unauthorized
+        "403":
+          description: Admin role required
